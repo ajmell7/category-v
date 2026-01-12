@@ -1,0 +1,16 @@
+name: category-v
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.8
+  - pip
+  # NetCDF-4 libraries
+  - netcdf4
+  - h5netcdf
+  - h5py
+  - xarray
+  # GCP libraries
+  - pip:
+    - google-cloud-storage
+    - google-cloud-core
