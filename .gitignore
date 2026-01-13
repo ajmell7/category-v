@@ -1,3 +1,6 @@
 glmtools/
 .DS_Store
 glm_files/
+__pycache__/
+*.txt
+old_code/
