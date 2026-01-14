@@ -2,11 +2,9 @@
 """
 Simple script to download a NetCDF file from Google Cloud Storage.
 """
-
-import xarray as xr
 import os
 
-from helpers import download_blob_from_google, store_group_components
+from helpers.glm_helpers import get_and_parse_all_blobs_between_dates
 
 def download_gcs_file(bucket_name, blob_name):
     """
@@ -30,4 +28,14 @@ if __name__ == "__main__":
     bucket_name = "gcp-public-data-goes-16"
     blob_name = "GLM-L2-LCFA/2022/010/16/OR_GLM-L2-LCFA_G16_s20220101600400_e20220101601000_c20220101601026.nc"
     
-    download_gcs_file(bucket_name, blob_name)
+    ## download_gcs_file(bucket_name, blob_name)
+    # blobs = get_and_parse_all_blobs_for_hour(bucket_name, '2022', '044', '07')
+    # print(f"Downloaded {len(blobs)} blobs for the hour")
+
+    # get_all_blobs_between_dates(bucket_name, '2022', '010', '16', '2022', '010', '17')
+    hours = get_and_parse_all_blobs_between_dates(bucket_name,'2022-12-13', '08', '2022-12-13', '14')
+    print(f"Hours: {hours}")
+    
+
+
+

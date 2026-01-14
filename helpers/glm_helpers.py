@@ -1,10 +1,10 @@
 """
 Helper functions for GLM data.
 """
-
-from google.cloud import storage
 import xarray as xr
 import os
+from google.cloud import storage
+from helpers.date_helpers import get_list_of_hours_between_dates
 
 def download_blob_from_google(bucket_name, blob_name):
     """
@@ -48,7 +48,6 @@ def download_blob_from_google(bucket_name, blob_name):
     blob.download_to_filename(destination_path)
     
     return destination_path
-
 
 def store_group_components(nc_file):    
     """
@@ -95,3 +94,58 @@ def store_group_components(nc_file):
     ds_group.to_netcdf(os.path.join(destination_path, file_name))
 
     return destination_path
+
+def get_and_parse_all_blobs_for_hour(bucket_name, year, day, hour):
+    """
+    Download all blobs for a given hour.
+    
+    Args:
+        bucket_name: Name of the Google Cloud Storage bucket
+        year: Year (YYYY)
+        day: Day (DDD)
+        hour: Hour (HH)
+    
+    Returns:
+        List of downloaded files
+
+        Stores the blobs in the data/glm/raw/year/day/hour directory
+        Stores the group components in the data/glm/group/year/day/hour directory
+    """
+    client = storage.Client.create_anonymous_client()
+    bucket = client.bucket(bucket_name)
+    blobs = list(bucket.list_blobs(prefix=f"GLM-L2-LCFA/{year}/{day}/{hour}"))
+    
+    if not blobs:
+        print(f"No blobs found for hour {hour} of day {day} in year {year}")
+        return []
+
+    # Download each blob
+    downloaded_files = []
+    for blob in blobs:
+        raw_nc_file = download_blob_from_google(bucket_name, blob.name)
+        if raw_nc_file:
+            store_group_components(raw_nc_file)
+            downloaded_files.append(raw_nc_file)
+
+    print(f"Downloaded and parsed {len(downloaded_files)} nc_files for the hour {hour} of day {day} in year {year}")
+    
+    return downloaded_files
+
+def get_and_parse_all_blobs_between_dates(bucket_name, start_date, start_hour, end_date, end_hour):
+    """
+    Get and parse all blobs between two dates.
+
+    Args:
+        bucket_name: Name of the Google Cloud Storage bucket
+        start_date: Start date (YYYY-MM-DD)
+        start_hour: Start hour (HH)
+        end_date: End date (YYYY-MM-DD)
+        end_hour: End hour (HH)
+    """
+
+    # Get the list of hours between the start and end dates
+    hours = get_list_of_hours_between_dates(start_date, start_hour, end_date, end_hour)
+    
+    # Get and parse all blobs for each hour
+    for year, day, hour in hours:
+        get_and_parse_all_blobs_for_hour(bucket_name, year, day, hour)
