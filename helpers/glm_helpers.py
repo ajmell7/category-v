@@ -74,8 +74,6 @@ def store_group_components(nc_file):
     # Open the NetCDF file
     ds = xr.open_dataset(nc_file)
 
-    # Create a new dataset with only the group components
-
     # Find all group dimensions in the dataset
     group_data_vars = [var for var in ds.data_vars if var.startswith('group')]
     group_coords = {var: ds.coords[var] for var in ds.coords if var.startswith('group')}

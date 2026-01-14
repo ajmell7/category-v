@@ -10,7 +10,9 @@ dependencies:
   - h5netcdf
   - h5py
   - xarray
+  - pandas
   # GCP libraries
   - pip:
     - google-cloud-storage
     - google-cloud-core
+    - hurdat2parser

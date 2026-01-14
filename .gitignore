@@ -49,6 +49,7 @@ venv.bak/
 *.nc4
 *.h5
 *.hdf5
+*.txt
 
 # Logs
 *.log
