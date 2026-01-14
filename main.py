@@ -13,8 +13,8 @@ if __name__ == "__main__":
 
     # Example: Get GLM data for a specific time range
     # Creates the directory paths to store the raw and parsed data.
-    hours = get_and_parse_all_blobs_between_dates(bucket_name,'2022-12-13', '08', '2022-12-13', '09')
-    print(f"Hours: {hours}")
+    # hours = get_and_parse_all_blobs_between_dates(bucket_name,'2022-12-13', '08', '2022-12-13', '09')
+    # print(f"Hours: {hours}")
     
     # Example: Use HurdatDataManipulator to get hurricane data
     hurricane_manipulator = HurdatDataManipulator()
