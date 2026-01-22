@@ -11,6 +11,10 @@ dependencies:
   - h5py
   - xarray
   - pandas
+  - numpy
+  - cartopy
+  # Libraries for interpolation
+  - geographiclib
   # GCP libraries
   - pip:
     - google-cloud-storage

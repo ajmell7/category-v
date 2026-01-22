@@ -62,6 +62,7 @@ category-v/
 │   ├── glm_helpers.py    # GLM data download and processing
 │   ├── hurricane_helpers.py  # Hurricane data manipulation
 │   ├── date_helpers.py   # Date/time utilities
+│   ├── hurricane_interpolation_helper.py   # Hurricane path, wind, and pressure interpolation
 │   └── __init__.py
 ├── main.py               # Main script with examples
 ├── environment.yml       # Conda environment configuration
@@ -163,6 +164,12 @@ if hurricane_info:
 
 ### `date_helpers`
 - `get_list_of_hours_between_dates()` - Generate list of hours between two dates
+
+### `hurricane_interpolation_helpers`
+- `HurricaneInterpolator` - Main class for hurricane interpolation operations
+  - `interpolate_path(hurricane_name, original_path_df, interval_minutes=30)` - Interpolate path for given hurricane
+  - `plot_interpolated_path(interp_path_df)` - Plot the interpolated hurricane path
+  - `interpolate_wind_and_pressure(interpolated_path_df, wind_pressure_df)` - Interpolate wind and pressure based on path timestamps
 
 ## Data Organization
 

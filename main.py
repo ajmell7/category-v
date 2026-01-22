@@ -6,6 +6,7 @@ import os
 
 from helpers.glm_helpers import get_and_parse_all_blobs_between_dates
 from helpers.hurricane_helpers import HurdatDataManipulator
+from helpers.hurricane_interpolation_helpers import HurricaneInterpolator
 
 if __name__ == "__main__":
     bucket_name = "gcp-public-data-goes-16"
@@ -18,6 +19,7 @@ if __name__ == "__main__":
     
     # Example: Use HurdatDataManipulator to get hurricane data
     hurricane_manipulator = HurdatDataManipulator()
+    hurricane_interpolator = HurricaneInterpolator()
     
     # Example: Get all hurricanes
     all_hurricanes = hurricane_manipulator.get_all_hurricanes(region="atl")
@@ -37,6 +39,16 @@ if __name__ == "__main__":
         print(f"\n{hurricane_name} path data:")
         print(path_df.head())
         print(f"Total track points: {len(path_df)}")
+
+    # Example: Interpolate hurricane path
+    interp_path_df = hurricane_interpolator.interpolate_path(hurricane_name, path_df, 30)
+    #hurricane_interpolator.plot_interpolated_path(interp_path_df)
+    wind_pressure_df = hurricane_manipulator.get_hurricane_wind_and_pressure(name=hurricane_name, region="atl")
+    if wind_pressure_df is not None:
+        print(f"\n{hurricane_name} wind and pressure data:")
+        print(wind_pressure_df.head())
+        print(f"Total points: {len(wind_pressure_df)}")
+    full_hurdat_interp_df = hurricane_interpolator.interpolate_wind_and_pressure(interp_path_df,wind_pressure_df)
     
     # Example: Download GLM data for a hurricane's active period
     # if start_date and end_date:
