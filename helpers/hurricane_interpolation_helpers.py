@@ -49,11 +49,13 @@ class HurricaneInterpolator:
         return interp_path_df
 
 
-    def plot_interpolated_path(self, interp_path_df):
+    def plot_interpolated_path(self, orig_path_df, interp_path_df):
         """Plot interpolated hurricane path on a map."""
         # Get interpolated lat long points
-        lat = interp_path_df['lat'].values
-        lon = interp_path_df['lon'].values
+        interp_lat = interp_path_df['lat'].values
+        interp_lon = interp_path_df['lon'].values
+        orig_lat = orig_path_df['lat'].values
+        orig_lon = orig_path_df['lon'].values
 
         # Create figure
         fig = plt.figure(figsize=(10, 6))
@@ -68,7 +70,8 @@ class HurricaneInterpolator:
         ax.set_title("Interpolated Path for Hurricane " + self.hurricane_name)
 
         # Plot interpolated points on map
-        ax.scatter(lon, lat, color='red', marker='o', transform=ccrs.PlateCarree())
+        ax.scatter(interp_lon, interp_lat, color='red', marker='o', transform=ccrs.PlateCarree())
+        ax.scatter(orig_lon, orig_lat, color='blue', marker='x', edgecolor='black', transform=ccrs.PlateCarree())
 
         plt.show()
 

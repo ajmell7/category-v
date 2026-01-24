@@ -42,7 +42,9 @@ if __name__ == "__main__":
 
     # Example: Interpolate hurricane path
     interp_path_df = hurricane_interpolator.interpolate_path(hurricane_name, path_df, 30)
-    #hurricane_interpolator.plot_interpolated_path(interp_path_df)
+
+    hurricane_interpolator.plot_interpolated_path(path_df, interp_path_df)
+
     wind_pressure_df = hurricane_manipulator.get_hurricane_wind_and_pressure(name=hurricane_name, region="atl")
     if wind_pressure_df is not None:
         print(f"\n{hurricane_name} wind and pressure data:")
