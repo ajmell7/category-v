@@ -22,3 +22,8 @@ dependencies:
     - hurdat2parser
     - tropycal
     - setuptools
+    - contextily
+    - fsspec
+    - requests
+    - aiohttp
+    - matplotlib-inline
