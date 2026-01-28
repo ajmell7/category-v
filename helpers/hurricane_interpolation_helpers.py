@@ -10,14 +10,16 @@ from geographiclib.geodesic import Geodesic
 
 class HurricaneInterpolator:
     def __init__(self):
-        self.hurricane_name = None
+        self.storm_name = None
+        self.storm_year = None
 
-    def interpolate_path(self, hurricane_name, original_path_df, interval_minutes=30):
+    def interpolate_path(self, storm_name, storm_year, original_path_df, interval_minutes=30):
         """Interpolate hurricane path to get (lat, long) location every 30 minutes."""
         geod = Geodesic.WGS84
+        self.storm_name = storm_name
+        self.storm_year = storm_year
         original_path_df = original_path_df.reset_index(drop=True)
         interp_points = []
-        self.hurricane_name = hurricane_name
         for row_i in range(len(original_path_df)-1):
             point1 = original_path_df.iloc[row_i]
             point2 = original_path_df.iloc[row_i+1]
@@ -61,13 +63,18 @@ class HurricaneInterpolator:
         fig = plt.figure(figsize=(10, 6))
         ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
 
+        min_lat = min(interp_lat) - 10
+        max_lat = max(interp_lat) + 10
+        min_lon = min(interp_lon) - 10
+        max_lon = max(interp_lon) + 10
+
         # Add background geography
-        ax.set_extent([-90, -60, 10, 35], crs=ccrs.PlateCarree()) # set lat long bounds
+        ax.set_extent([min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree()) # set lat long bounds
         ax.coastlines() # add coastlines
         ax.add_feature(cfeature.LAND) # add land color
         ax.add_feature(cfeature.OCEAN) # add ocean color
         ax.gridlines(draw_labels=True)
-        ax.set_title("Interpolated Path for Hurricane " + self.hurricane_name)
+        ax.set_title("Interpolated Path for " + self.storm_name + " " + str(self.storm_year))
 
         # Plot interpolated points on map
         ax.scatter(interp_lon, interp_lat, color='red', marker='o', transform=ccrs.PlateCarree())
@@ -86,5 +93,8 @@ class HurricaneInterpolator:
             direction='nearest',
             tolerance=pd.Timedelta('6H')
         )
-        full_hurdat_interp_df.to_csv("full_hurdat_interp_df.csv", index=False)
+        full_hurdat_interp_df["storm_name"] = self.storm_name
+        full_hurdat_interp_df["storm_year"] = self.storm_year
+        full_hurdat_interp_df = full_hurdat_interp_df[["storm_name","storm_year","time","lat","lon","vmax","mslp"]]
+        #full_hurdat_interp_df.to_csv("full_hurdat_interp_df.csv", index=False)
         return full_hurdat_interp_df

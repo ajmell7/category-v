@@ -95,7 +95,8 @@ class HurdatDataManipulator:
                     path_data.append({
                         "lat": entry.lat,
                         "lon": entry.lon,
-                        "time": entry.date
+                        "time": entry.date,
+                        "status": entry.status
                     })
                 return pd.DataFrame(path_data)
         return None
