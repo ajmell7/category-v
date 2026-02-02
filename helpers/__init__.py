@@ -16,6 +16,10 @@ from .hurricane_helpers import (
     interpolate_besttrack_for_code,
     interpolate_all_hurricanes_besttrack
 )
+from .orchestration_helpers import (
+    download_all_data_for_hurricane,
+    download_all_data_for_all_hurricanes
+)
 
 __all__ = [
     'get_bins_midpoint_times',
@@ -34,5 +38,8 @@ __all__ = [
     'get_hurricane_bin_start_times',
     'get_hurricane_bin_end_times',
     'interpolate_besttrack_for_code',
-    'interpolate_all_hurricanes_besttrack'
+    'interpolate_all_hurricanes_besttrack',
+
+    'download_all_data_for_hurricane',
+    'download_all_data_for_all_hurricanes'
 ]

@@ -202,6 +202,50 @@ results = process_all_hurricanes_glm(
 )
 ```
 
+### Orchestrating Complete Data Processing
+
+#### Download all data for a single hurricane
+
+The orchestration helpers provide a convenient way to process all data types (hurricane best track, SHIPS, and GLM) for a hurricane in the correct order:
+
+```python
+from helpers import download_all_data_for_hurricane
+
+# Process all data for a single hurricane
+results = download_all_data_for_hurricane(
+    "AL092022",  # Hurricane code
+    region="atl",
+    time_interval=30,
+    box_size=6,
+    nn_tolerance=None,  # Uses default (3 hours) from constants
+    cache_dir=None  # Uses default cache directory
+)
+# Returns dictionary with paths:
+# {
+#     'hurricane': 'data/storms/IAN_2022/hurricane/besttrack.csv',
+#     'ships': 'data/storms/IAN_2022/ships/ships_interpolated.csv',
+#     'glm': 'data/storms/IAN_2022/glm/groups.csv'
+# }
+```
+
+#### Download all data for all hurricanes
+
+Process all data types for all hurricanes in a region:
+
+```python
+from helpers import download_all_data_for_all_hurricanes
+
+# Process all data for all hurricanes
+results = download_all_data_for_all_hurricanes(
+    region="atl",
+    time_interval=30,
+    box_size=6,
+    nn_tolerance=None,
+    cache_dir=None
+)
+# Returns dictionary mapping hurricane codes to their processed data paths
+```
+
 ### Working with Time Bins
 
 #### Get bin times for a hurricane
@@ -246,6 +290,11 @@ Functions for working with GLM (Geostationary Lightning Mapper) data:
 - `aggregate_glm_data_for_urls(glm_urls, center_lat, center_lon, box_size, geod, cache_dir)` - Aggregate GLM data from multiple URLs
 - `process_glm_info_for_hurricane(hurricane_code, box_size=6, region=None, time_interval=30, cache_dir=None)` - Process GLM data for a single hurricane
 - `process_all_hurricanes_glm(box_size=6, region=None, time_interval=30, cache_dir=None)` - Process GLM data for all hurricanes
+
+### `orchestration_helpers`
+Functions for orchestrating complete data processing pipelines:
+- `download_all_data_for_hurricane(hurricane_code, region=None, time_interval=30, box_size=6, nn_tolerance=None, cache_dir=None)` - Process all data (hurricane best track, SHIPS, and GLM) for a single hurricane
+- `download_all_data_for_all_hurricanes(region=None, time_interval=30, box_size=6, nn_tolerance=None, cache_dir=None)` - Process all data for all hurricanes in a region
 
 ### `time_helpers`
 Functions for working with dates and time bins:
