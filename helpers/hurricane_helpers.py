@@ -377,6 +377,117 @@ def interpolate_besttrack_info(besttrack_data_df, bin_times, bin_starts, bin_end
 
     return besttrack_interp_df
 
+def get_hurricane_bin_midpoint_times(hurricane_code, region=None, time_interval=30):
+    """
+    Get the midpoint times of bins for a hurricane.
+    
+    Args:
+        hurricane_code: Hurricane code (ATCF ID, e.g., "AL092022")
+        region: Region ("atl" or "pac"). If None, determined from code (AL=atl, EP=pac)
+        time_interval: Time interval in minutes for bins (default: 30)
+    
+    Returns:
+        List of datetime objects representing bin midpoint times
+    """
+    # Determine region from code if not provided
+    if region is None:
+        if hurricane_code.startswith('AL'):
+            region = 'atl'
+        elif hurricane_code.startswith('EP'):
+            region = 'pac'
+        else:
+            raise ValueError(f"Could not determine region from code {hurricane_code}. Please specify region.")
+    
+    # Load hurricane list to get start and end dates
+    list_csv_path = f'data/global/hurricane/{region}_hurricane_list_{TS_MIN.strftime("%Y%m%d")}_{TS_MAX.strftime("%Y%m%d")}.csv'
+    if not os.path.exists(list_csv_path):
+        raise FileNotFoundError(f"Hurricane list CSV not found at {list_csv_path}. Run list_all_hurricanes(region='{region}') first.")
+    
+    hurricanes_df = pd.read_csv(list_csv_path, parse_dates=['start_date', 'end_date'])
+    hurricane_info = hurricanes_df[hurricanes_df['code'] == hurricane_code]
+    
+    if len(hurricane_info) == 0:
+        raise ValueError(f"Hurricane code {hurricane_code} not found in hurricane list.")
+    
+    start_date = hurricane_info['start_date'].iloc[0]
+    end_date = hurricane_info['end_date'].iloc[0]
+    
+    return get_bins_midpoint_times(start_date, end_date, time_interval)
+
+def get_hurricane_bin_start_times(hurricane_code, region=None, time_interval=30):
+    """
+    Get the start times of bins for a hurricane.
+    
+    Args:
+        hurricane_code: Hurricane code (ATCF ID, e.g., "AL092022")
+        region: Region ("atl" or "pac"). If None, determined from code (AL=atl, EP=pac)
+        time_interval: Time interval in minutes for bins (default: 30)
+    
+    Returns:
+        List of datetime objects representing bin start times
+    """
+    # Determine region from code if not provided
+    if region is None:
+        if hurricane_code.startswith('AL'):
+            region = 'atl'
+        elif hurricane_code.startswith('EP'):
+            region = 'pac'
+        else:
+            raise ValueError(f"Could not determine region from code {hurricane_code}. Please specify region.")
+    
+    # Load hurricane list to get start and end dates
+    list_csv_path = f'data/global/hurricane/{region}_hurricane_list_{TS_MIN.strftime("%Y%m%d")}_{TS_MAX.strftime("%Y%m%d")}.csv'
+    if not os.path.exists(list_csv_path):
+        raise FileNotFoundError(f"Hurricane list CSV not found at {list_csv_path}. Run list_all_hurricanes(region='{region}') first.")
+    
+    hurricanes_df = pd.read_csv(list_csv_path, parse_dates=['start_date', 'end_date'])
+    hurricane_info = hurricanes_df[hurricanes_df['code'] == hurricane_code]
+    
+    if len(hurricane_info) == 0:
+        raise ValueError(f"Hurricane code {hurricane_code} not found in hurricane list.")
+    
+    start_date = hurricane_info['start_date'].iloc[0]
+    end_date = hurricane_info['end_date'].iloc[0]
+    
+    return get_bins_start_times(start_date, end_date, time_interval)
+
+def get_hurricane_bin_end_times(hurricane_code, region=None, time_interval=30):
+    """
+    Get the end times of bins for a hurricane.
+    
+    Args:
+        hurricane_code: Hurricane code (ATCF ID, e.g., "AL092022")
+        region: Region ("atl" or "pac"). If None, determined from code (AL=atl, EP=pac)
+        time_interval: Time interval in minutes for bins (default: 30)
+    
+    Returns:
+        List of datetime objects representing bin end times
+    """
+    # Determine region from code if not provided
+    if region is None:
+        if hurricane_code.startswith('AL'):
+            region = 'atl'
+        elif hurricane_code.startswith('EP'):
+            region = 'pac'
+        else:
+            raise ValueError(f"Could not determine region from code {hurricane_code}. Please specify region.")
+    
+    # Load hurricane list to get start and end dates
+    list_csv_path = f'data/global/hurricane/{region}_hurricane_list_{TS_MIN.strftime("%Y%m%d")}_{TS_MAX.strftime("%Y%m%d")}.csv'
+    if not os.path.exists(list_csv_path):
+        raise FileNotFoundError(f"Hurricane list CSV not found at {list_csv_path}. Run list_all_hurricanes(region='{region}') first.")
+    
+    hurricanes_df = pd.read_csv(list_csv_path, parse_dates=['start_date', 'end_date'])
+    hurricane_info = hurricanes_df[hurricanes_df['code'] == hurricane_code]
+    
+    if len(hurricane_info) == 0:
+        raise ValueError(f"Hurricane code {hurricane_code} not found in hurricane list.")
+    
+    start_date = hurricane_info['start_date'].iloc[0]
+    end_date = hurricane_info['end_date'].iloc[0]
+    
+    return get_bins_end_times(start_date, end_date, time_interval)
+
 def interpolate_besttrack_for_code(hurricane_code, region=None, time_interval=30):
     """
     Interpolate best track data for a hurricane given only its code.
@@ -413,8 +524,6 @@ def interpolate_besttrack_for_code(hurricane_code, region=None, time_interval=30
     
     hurricane_name = hurricane_info['name'].iloc[0]
     hurricane_start_year = int(hurricane_info['year'].iloc[0])
-    start_date = hurricane_info['start_date'].iloc[0]
-    end_date = hurricane_info['end_date'].iloc[0]
     
     # Get best track data for this hurricane using get_hurricane_path
     # get_hurricane_path uses default time range from constants
@@ -423,15 +532,15 @@ def interpolate_besttrack_for_code(hurricane_code, region=None, time_interval=30
     if hurricane_besttrack is None or len(hurricane_besttrack) == 0:
         raise ValueError(f"No best track data found for hurricane code {hurricane_code}")
     
-    # Create bins
-    bin_times = get_bins_midpoint_times(start_date, end_date, time_interval)
+    # Create bins using the new helper functions
+    bin_times = get_hurricane_bin_midpoint_times(hurricane_code, region, time_interval)
     
     if len(bin_times) == 0:
-        raise ValueError(f"No bins created for hurricane {hurricane_code}. Check start_date ({start_date}) and end_date ({end_date}).")
+        raise ValueError(f"No bins created for hurricane {hurricane_code}.")
     
     # Create bin_starts and bin_ends
-    bin_starts = get_bins_start_times(start_date, end_date, time_interval)
-    bin_ends = get_bins_end_times(start_date, end_date, time_interval)
+    bin_starts = get_hurricane_bin_start_times(hurricane_code, region, time_interval)
+    bin_ends = get_hurricane_bin_end_times(hurricane_code, region, time_interval)
     
     # Create geographic datum
     geod = Geod(ellps="WGS84")
