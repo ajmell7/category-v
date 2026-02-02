@@ -22,3 +22,6 @@ NE_PAC_BEST_TRACK_URL = 'https://www.nhc.noaa.gov/data/hurdat/hurdat2-nepac-1949
 # SHIPS data paths
 ATL_SHIPS_URL = 'https://rammb-data.cira.colostate.edu/ships/data/AL/lsdiaga_1982_2023_sat_ts_7day.txt'
 NE_PAC_SHIPS_URL = 'https://rammb-data.cira.colostate.edu/ships/data/EP/lsdiage_1982_2023_sat_ts_7day.txt'
+
+# GLM data bucket
+GLM_BUCKET_NAME = "gcp-public-data-goes-16"

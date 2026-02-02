@@ -1,149 +1,360 @@
 """
 Helper functions for GLM data.
 """
-import xarray as xr
 import os
+import shutil
+import pandas as pd
+import numpy as np
+import fsspec
+import h5py
+from datetime import timedelta
 from google.cloud import storage
-from helpers.date_helpers import get_list_of_hours_between_dates
+from concurrent.futures import ThreadPoolExecutor
+from itertools import repeat
+from astropy.time import Time
+from pyproj import Geod
 
-def download_blob_from_google(bucket_name, blob_name):
+from helpers.hurricane_helpers import (
+    get_hurricane_bin_midpoint_times,
+    get_hurricane_bin_start_times,
+    get_hurricane_bin_end_times,
+    interpolate_besttrack_for_code
+)
+from constants import DEFAULT_REGION, TS_MIN, TS_MAX, GLM_BUCKET_NAME
+
+def process_glm_file_h5py(url, center_lat, center_lon, box_size, geod, cache_dir):
     """
-    Download a file from Google Cloud Storage.
-    
+    Get lightning group data for a lat/lon box around a hurricane center from a
+    GLM file
+
     Args:
-        bucket_name: Name of the GCS bucket (gcp-public-data-goes-16)
-        blob_name: Path to the file within the bucket (GLM-L2-LCFA/YYYY/DDD/HH/filename.nc)
-    
+        url: URL of the GLM file
+        center_lat: Latitude of hurricane center
+        center_lon: Longitude of hurricane center
+        box_size: Size of lat/lon box to get data. For instance, if box_size = 6
+            and hurricane center is at 0,0, we get lightning data for the area
+            between -6 and +6 in latitude and longitude)
+        geod: Geographic datum to use for calculating lightning distance from
+            hurricane center
+        cache_dir: Directory to store cached GLM files
+
     Returns:
-        Stores the file in the data/glm/raw/year/day/hour/filename directory
-        str: Path to the downloaded file
+        Dataframe with group data for the specified GLM file and lat/lon box
     """
-    client = storage.Client.create_anonymous_client()
-    
-    # Get the bucket and blob
-    bucket = client.bucket(bucket_name)
-    blob = bucket.blob(blob_name)
+    try:
+        # Cache GLM file (faster to cache locally than scan over network)
+        with fsspec.open(f"simplecache::{url}", "rb", cache_storage=cache_dir) as f:
+            with h5py.File(f, "r") as ds:
+                # Get desired fields from dataset
+                lat = ds["group_lat"][:]
+                lon = ds["group_lon"][:]
+                area = ds["group_area"][:]
+                energy = ds["group_energy"][:]
+                time_offsets = ds["group_time_offset"][:]
+                qflag = ds["group_quality_flag"][:]
 
-    # Parse blob_name to extract year, day, hour
-    path_parts = blob_name.split('/')
-    
-    if len(path_parts) >= 4:
-        year = path_parts[1]
-        day = str(int(path_parts[2]))
-        hour = str(int(path_parts[3]))
-        filename = os.path.basename(blob_name)
-        
-        # Create directory structure: data/glm/raw/year/day/hour
-        destination_path = os.path.join('data', 'glm', 'raw', year, day, hour, filename)
-    else:        
-        # Log a warning if the blob_name format is invalid
-        print(f"ERROR: Invalid blob_name format: {blob_name}")
+                # Mask to filter data by lightning lat/lon coordinates
+                mask = (
+                    (lat >= center_lat - box_size) & (lat <= center_lat + box_size) &
+                    (lon >= center_lon - box_size) & (lon <= center_lon + box_size)
+                )
+                
+                lat = lat[mask]
+                lon = lon[mask]
+                area = area[mask]
+                energy = energy[mask]
+                time_offsets = time_offsets[mask]
+                qflag = qflag[mask]
 
+                if len(lat) == 0:
+                    return None
+            
+                # product_time is in seconds since J2000 epoch
+                product_time = Time("J2000").datetime + timedelta(seconds=int(ds["product_time"][()]))
+                
+                # Convert time offsets to actual time (all of the group times are
+                # saved as offsets from product_time variable). The format is
+                # documented on about page 596 here:
+                # https://www.goes-r.gov/products/docs/PUG-L2+-vol5.pdf
+                time = [product_time + timedelta(seconds=(float(np.uint16(offset))*25/65536)-5) for offset in time_offsets]
+
+                # Calculate lightning distance and direction from storm center
+                az, _, dist = geod.inv(
+                    np.full_like(lon, center_lon),
+                    np.full_like(lat, center_lat),
+                    lon,
+                    lat
+                )
+
+                az = az % 360
+
+                # Compile GLM data into dataframe
+                df = pd.DataFrame({
+                    "Group Time": time,
+                    "Group Latitude": lat,
+                    "Group Longitude": lon,
+                    "Group Area": area,
+                    "Group Energy": energy,
+                    "Group Quality Flag": qflag,
+                    "Distance From Hurricane Center (m)": dist,
+                    "Direction from Hurricane Center (deg)": az
+                })
+
+                return df
+
+    except Exception as e:
+        print(f"Error processing {url}: {e}")
         return None
-    
-    # Make directory structure if it doesn't exist
-    os.makedirs(os.path.dirname(destination_path), exist_ok=True)
-    
-    # Download the file
-    blob.download_to_filename(destination_path)
-    
-    return destination_path
 
-def store_group_components(nc_file):    
+def aggregate_glm_data_for_urls(glm_urls, center_lat, center_lon, box_size, geod, cache_dir):
     """
-    Store the group components of a NetCDF file.
+    Get lightning group data for a list of URLs using process_glm_file_h5py
+    function
 
     Args:
-        nc_file: Path to the NetCDF file
-    
+        glm_urls: List of URLs of GLM files to process
+        center_lat: Latitude of hurricane center
+        center_lon: Longitude of hurricane center
+        box_size: Size of lat/lon box to get data. For instance, if box_size = 6
+            and hurricane center is at 0,0, we get lightning data for the area
+            between -6 and +6 in latitude and longitude)
+        geod: Geographic datum to use for calculating lightning distance from
+            hurricane center
+        cache_dir: Directory to store cached GLM files
+
     Returns:
-        Stores the NetCDF file with only the group components under the data/glm/group/ directory
+        Dataframe with group data for all the listed GLM files 
     """
 
-    # Parse the file name to extract the year, day, hour
-    file_name = os.path.basename(nc_file)
-    path_parts = nc_file.split('/')
-    year = path_parts[3]
-    day = path_parts[4]
-    hour = path_parts[5]
+    #Place to store individual file outputs from process_glm_file_h5py
+    dfs = []
 
-    # Create the directory structure: data/glm/group/year/day/hour
-    destination_path = os.path.join('data', 'glm', 'group', year, day, hour)
+    #Parallelize individual file data reads (48 workers was best in my testing)
+    with ThreadPoolExecutor(max_workers=48) as executor:
+        for df in executor.map(process_glm_file_h5py, glm_urls, repeat(center_lat), repeat(center_lon), repeat(box_size), repeat(geod), repeat(cache_dir)):
+            if df is not None:
+                dfs.append(df)
+
+    #Concatenate GLM file outputs into one dataframe and return
+    final_df = None
+    try:
+        if dfs:
+            final_df = pd.concat(dfs, ignore_index=True)
+    except Exception as e:
+        print(f"Error concatenating GLM dataframes: {e}")
+    return final_df
+
+def _get_glm_urls_for_time_range(start_date, end_date):
+    """
+    Get GCS URLs for GLM files in a time range.
+    
+    Args:
+        start_date: Start datetime
+        end_date: End datetime
+    
+    Returns:
+        List of GCS URLs to GLM files
+    """
+    glm_urls = []
+    current_date = start_date
+    
+    while current_date <= end_date:
+        year = current_date.year
+        day_of_year = current_date.timetuple().tm_yday
+        hour = current_date.hour
+        
+        # Construct GCS URL pattern
+        prefix = f"GLM-L2-LCFA/{year}/{str(day_of_year).zfill(3)}/{str(hour).zfill(2)}"
+        
+        # List blobs in GCS
+        client = storage.Client.create_anonymous_client()
+        bucket = client.bucket(GLM_BUCKET_NAME)
+        blobs = list(bucket.list_blobs(prefix=prefix))
+        
+        for blob in blobs:
+            glm_urls.append(f"gs://{GLM_BUCKET_NAME}/{blob.name}")
+        
+        # Move to next hour
+        current_date += timedelta(hours=1)
+    
+    return glm_urls
+
+def process_glm_info_for_hurricane(hurricane_code, box_size=6, region=None, time_interval=30, cache_dir=None):
+    """
+    Process and aggregate GLM data for a given hurricane.
+    
+    For each bin, gets GLM file URLs and aggregates lightning data around the hurricane center.
+    
+    Args:
+        hurricane_code: Hurricane code (e.g., 'AL092022')
+        box_size: Size of lat/lon box to get data (default: 6 degrees)
+        region: Region must be either "atl" (Atlantic) or "pac" (Pacific) (defaults to DEFAULT_REGION from constants)
+        time_interval: Time interval in minutes for bins (default: 30)
+        cache_dir: Directory to store cached GLM files (default: None, uses temp directory)
+    
+    Returns:
+        Path to the saved GLM data CSV
+    """
+    if region is None:
+        region = DEFAULT_REGION
+    
+    # Get hurricane name and year from the hurricane list
+    list_csv_path = f'data/global/hurricane/{region}_hurricane_list_{TS_MIN.strftime("%Y%m%d")}_{TS_MAX.strftime("%Y%m%d")}.csv'
+    if not os.path.exists(list_csv_path):
+        raise FileNotFoundError(f"Hurricane list CSV not found at {list_csv_path}. Run list_all_hurricanes(region='{region}') first.")
+    
+    hurricanes_df = pd.read_csv(list_csv_path, parse_dates=['start_date', 'end_date'])
+    hurricane_info = hurricanes_df[hurricanes_df['code'] == hurricane_code]
+    
+    if len(hurricane_info) == 0:
+        raise ValueError(f"Hurricane code {hurricane_code} not found in hurricane list.")
+    
+    hurricane_name = hurricane_info['name'].iloc[0]
+    hurricane_start_year = int(hurricane_info['year'].iloc[0])
+    start_date = hurricane_info['start_date'].iloc[0]
+    end_date = hurricane_info['end_date'].iloc[0]
+    
+    # Get interpolated best track data to get lat/lon for each bin
+    besttrack_interp_df = interpolate_besttrack_for_code(hurricane_code, region, time_interval)
+    
+    # Get bin times
+    bin_times = get_hurricane_bin_midpoint_times(hurricane_code, region, time_interval)
+    bin_starts = get_hurricane_bin_start_times(hurricane_code, region, time_interval)
+    bin_ends = get_hurricane_bin_end_times(hurricane_code, region, time_interval)
+    
+    # Create geographic datum
+    geod = Geod(ellps="WGS84")
+    
+    # Create the directory path to store the GLM data
+    destination_path = f'data/storms/{hurricane_name}_{hurricane_start_year}/glm'
     os.makedirs(destination_path, exist_ok=True)
     
-    # Open the NetCDF file
-    ds = xr.open_dataset(nc_file)
+    if cache_dir is None:
+        cache_dir = os.path.join(os.getcwd(), 'data', 'cache', 'glm')
+    os.makedirs(cache_dir, exist_ok=True)
+    
+    print(f"Processing GLM data for {hurricane_name} ({hurricane_code})...")
+    print(f"  Time range: {start_date} to {end_date}")
+    print(f"  Number of bins: {len(bin_times)}")
+    
+    # Process each bin
+    all_glm_data = []
+    for idx, bin_time in enumerate(bin_times):
+        print(f"  Processing bin {idx+1}/{len(bin_times)}: {bin_time}")
+        
+        bin_start = bin_starts[idx]
+        bin_end = bin_ends[idx]
+        
+        # Get hurricane center lat/lon for this bin
+        bin_besttrack = besttrack_interp_df[besttrack_interp_df['Timestamp'] == bin_time]
+        if len(bin_besttrack) == 0:
+            print(f"    Warning: No best track data for bin time {bin_time}")
+            continue
+        
+        center_lat = bin_besttrack['Latitude'].iloc[0]
+        center_lon = bin_besttrack['Longitude'].iloc[0]
+        
+        # Get GLM URLs for this bin's time range (process_glm_file_h5py reads directly from GCS)
+        print(f"    Getting GLM URLs for bin {bin_time}...")
+        glm_urls = _get_glm_urls_for_time_range(bin_start, bin_end)
+        
+        if not glm_urls:
+            print(f"    No GLM files found for bin {bin_time}")
+            continue
+        
+        # Aggregate GLM data for this bin
+        print(f"    Aggregating GLM data from {len(glm_urls)} files...")
+        bin_glm_data = aggregate_glm_data_for_urls(glm_urls, center_lat, center_lon, box_size, geod, cache_dir)
+        
+        if bin_glm_data is not None and len(bin_glm_data) > 0:
+            all_glm_data.append(bin_glm_data)
+            print(f"    Found {len(bin_glm_data)} lightning groups")
+        else:
+            print(f"    No lightning data for bin {bin_time}")
+        
+        # Clear cache after each bin to free up space
+        if os.path.exists(cache_dir):
+            shutil.rmtree(cache_dir)
+            os.makedirs(cache_dir)
+    
+    # Combine all bin data
+    if all_glm_data:
+        merged_glm_data = pd.concat(all_glm_data, ignore_index=True)
+        
+        # Save the GLM data
+        csv_path = f'{destination_path}/groups.csv'
+        merged_glm_data.to_csv(csv_path, index=False)
+        print(f"Saved GLM data to {csv_path}")
+        print(f"Total lightning groups: {len(merged_glm_data)}")
+        
+        return csv_path
+    else:
+        print(f"No GLM data found for {hurricane_name}")
+        return None
 
-    # Find all group dimensions in the dataset
-    group_data_vars = [var for var in ds.data_vars if var.startswith('group')]
-    group_coords = {var: ds.coords[var] for var in ds.coords if var.startswith('group')}
-
-    # Create a new dataset with only the group components
-    ds_group = ds[group_data_vars].assign_coords(group_coords)
-
-    # TODO: Ensure that we are grabbing the correct group data and any needed attributes
-
-    # Save global attributes
-    ds_group.attrs = ds.attrs
-
-    # NOTE: Filtering the nc_file significantly reduces the file size.
-
-    # Save the filtered group dataset to the destination path
-    ds_group.to_netcdf(os.path.join(destination_path, file_name))
-
-    return destination_path
-
-def get_and_parse_all_blobs_for_hour(bucket_name, year, day, hour):
+def process_all_hurricanes_glm(box_size=6, region=None, time_interval=30, cache_dir=None):
     """
-    Download all blobs for a given hour.
+    Process GLM data for all hurricanes in the hurricane list CSV.
     
     Args:
-        bucket_name: Name of the Google Cloud Storage bucket
-        year: Year (YYYY)
-        day: Day (DDD)
-        hour: Hour (HH)
+        box_size: Size of lat/lon box to get data (default: 6 degrees)
+        region: Region ("atl" or "pac") (defaults to DEFAULT_REGION from constants)
+        time_interval: Time interval in minutes for bins (default: 30)
+        cache_dir: Directory to store cached GLM files (default: None, uses temp directory)
     
     Returns:
-        List of downloaded files
-
-        Stores the blobs in the data/glm/raw/year/day/hour directory
-        Stores the group components in the data/glm/group/year/day/hour directory
+        Dictionary mapping hurricane codes to their GLM data paths
     """
-    client = storage.Client.create_anonymous_client()
-    bucket = client.bucket(bucket_name)
-    blobs = list(bucket.list_blobs(prefix=f"GLM-L2-LCFA/{year}/{day}/{hour}"))
+    if region is None:
+        region = DEFAULT_REGION
     
-    if not blobs:
-        print(f"No blobs found for hour {hour} of day {day} in year {year}")
-        return []
-
-    # Download each blob
-    downloaded_files = []
-    for blob in blobs:
-        raw_nc_file = download_blob_from_google(bucket_name, blob.name)
-        if raw_nc_file:
-            store_group_components(raw_nc_file)
-            downloaded_files.append(raw_nc_file)
-
-    print(f"Downloaded and parsed {len(downloaded_files)} nc_files for the hour {hour} of day {day} in year {year}")
+    # Load hurricane list
+    list_csv_path = f'data/global/hurricane/{region}_hurricane_list_{TS_MIN.strftime("%Y%m%d")}_{TS_MAX.strftime("%Y%m%d")}.csv'
+    if not os.path.exists(list_csv_path):
+        raise FileNotFoundError(f"Hurricane list CSV not found at {list_csv_path}. Run list_all_hurricanes(region='{region}') first.")
     
-    return downloaded_files
-
-def get_and_parse_all_blobs_between_dates(bucket_name, start_date, start_hour, end_date, end_hour):
-    """
-    Get and parse all blobs between two dates.
-
-    Args:
-        bucket_name: Name of the Google Cloud Storage bucket
-        start_date: Start date (YYYY-MM-DD)
-        start_hour: Start hour (HH)
-        end_date: End date (YYYY-MM-DD)
-        end_hour: End hour (HH)
-    """
-
-    # Get the list of hours between the start and end dates
-    hours = get_list_of_hours_between_dates(start_date, start_hour, end_date, end_hour)
+    hurricanes_df = pd.read_csv(list_csv_path, parse_dates=['start_date', 'end_date'])
     
-    # Get and parse all blobs for each hour
-    for year, day, hour in hours:
-        get_and_parse_all_blobs_for_hour(bucket_name, year, day, hour)
+    # Filter by region (codes starting with AL for atl, EP for pac)
+    if region == "atl":
+        hurricanes_df = hurricanes_df[hurricanes_df['code'].str.startswith('AL')]
+    elif region == "pac":
+        hurricanes_df = hurricanes_df[hurricanes_df['code'].str.startswith('EP')]
+    else:
+        raise ValueError(f"Region must be 'atl' or 'pac', got '{region}'")
+    
+    results = {}
+    total = len(hurricanes_df)
+    
+    print(f"Processing GLM data for {total} hurricanes from {region} region...")
+    
+    for idx, row in hurricanes_df.iterrows():
+        code = row['code']
+        name = row['name']
+        print(f"\n[{idx+1}/{total}] Processing {name} ({code})...")
+        
+        try:
+            csv_path = process_glm_info_for_hurricane(
+                code,
+                box_size=box_size,
+                region=region,
+                time_interval=time_interval,
+                cache_dir=cache_dir
+            )
+            if csv_path:
+                results[code] = csv_path
+            
+            # Clear cache after each hurricane to free up space
+            if cache_dir and os.path.exists(cache_dir):
+                shutil.rmtree(cache_dir)
+                os.makedirs(cache_dir)
+        except Exception as e:
+            print(f"    Error processing {code}: {e}")
+            # Clear cache even on error
+            if cache_dir and os.path.exists(cache_dir):
+                shutil.rmtree(cache_dir)
+                os.makedirs(cache_dir)
+            continue
+    
+    print(f"\nCompleted: Successfully processed {len(results)}/{total} hurricanes")
+    return results

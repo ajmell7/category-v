@@ -32,7 +32,6 @@ def get_bins_midpoint_times(start_datetime, end_datetime, time_interval):
 
     return bin_times
 
-
 def get_bins_start_times(start_datetime, end_datetime, time_interval):
     """
     Create start times for evenly-spaced datetime bins for full length of a hurricane.
@@ -47,7 +46,6 @@ def get_bins_start_times(start_datetime, end_datetime, time_interval):
     """
     midpoint_times = get_bins_midpoint_times(start_datetime, end_datetime, time_interval)
     return [midpoint - timedelta(minutes=time_interval/2) for midpoint in midpoint_times]
-
 
 def get_bins_end_times(start_datetime, end_datetime, time_interval):
     """
