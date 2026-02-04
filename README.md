@@ -62,7 +62,7 @@ category-v/
 │   ├── glm_helpers.py    # GLM data download and processing
 │   ├── hurricane_helpers.py  # Hurricane data manipulation
 │   ├── date_helpers.py   # Date/time utilities
-│   ├── hurricane_interpolation_helper.py   # Hurricane path, wind, and pressure interpolation
+│   ├── hurricane_interpolation_helper.py   # Hurricane path interpolation, wind and pressure assigned to closest timestamp
 │   ├── tropycal_helpers.py   # Pull hurdat data using tropycal package
 │   └── __init__.py
 ├── main.py               # Main script with examples
