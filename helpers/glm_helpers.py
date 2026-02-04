@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 import fsspec
 import h5py
-from datetime import timedelta
+from datetime import datetime, timedelta
 from google.cloud import storage
 from concurrent.futures import ThreadPoolExecutor
 from itertools import repeat
@@ -147,13 +147,14 @@ def aggregate_glm_data_for_urls(glm_urls, center_lat, center_lon, box_size, geod
 def _get_glm_urls_for_time_range(start_date, end_date):
     """
     Get GCS URLs for GLM files in a time range.
+    Filters URLs by parsing the filename to extract the start time.
     
     Args:
         start_date: Start datetime
         end_date: End datetime
     
     Returns:
-        List of GCS URLs to GLM files
+        List of GCS URLs to GLM files within the time range
     """
     glm_urls = []
     current_date = start_date
@@ -172,12 +173,42 @@ def _get_glm_urls_for_time_range(start_date, end_date):
         blobs = list(bucket.list_blobs(prefix=prefix))
         
         for blob in blobs:
-            glm_urls.append(f"gs://{GLM_BUCKET_NAME}/{blob.name}")
+            url = f"gs://{GLM_BUCKET_NAME}/{blob.name}"
+            glm_urls.append(url)
         
         # Move to next hour
         current_date += timedelta(hours=1)
     
     return glm_urls
+
+def _filter_urls_by_time_range(urls, start_date, end_date):
+    """
+    Filter a list of GLM URLs to only include files that start within a time range.
+    
+    Args:
+        urls: List of GLM file URLs
+        start_date: Start datetime
+        end_date: End datetime
+    
+    Returns:
+        List of URLs where file start time is within the time range
+    """
+    filtered_urls = []
+    
+    for url in urls:
+        try:
+            filename = url.split('/')[-1]
+            start_time_str = filename.split('_')[3][1:-1]  # Extract s20223140753200, remove 's' and last char
+            curr_start_time = datetime.strptime(start_time_str, "%Y%j%H%M%S")
+            
+            # Only include URLs where start time is within the desired range
+            if (curr_start_time >= start_date) and (curr_start_time < end_date):
+                filtered_urls.append(url)
+        except (IndexError, ValueError):
+            # Skip files that don't match expected format
+            continue
+    
+    return filtered_urls
 
 def process_glm_info_for_hurricane(hurricane_code, box_size=6, region=None, time_interval=30, cache_dir=None):
     """
@@ -237,6 +268,14 @@ def process_glm_info_for_hurricane(hurricane_code, box_size=6, region=None, time
     print(f"  Time range: {start_date} to {end_date}")
     print(f"  Number of bins: {len(bin_times)}")
     
+    # Get all GLM URLs for the entire hurricane time range
+    all_glm_urls = _get_glm_urls_for_time_range(start_date, end_date)
+    print(f"Found {len(all_glm_urls)} GLM URLs in total")
+    
+    # Filter URLs to only include files within the hurricane's time range
+    all_hurricane_glm_urls = _filter_urls_by_time_range(all_glm_urls, start_date, end_date)
+    print(f"  Found {len(all_hurricane_glm_urls)} GLM URLSs within hurricane time range")
+    
     # Process each bin
     all_glm_data = []
     for idx, bin_time in enumerate(bin_times):
@@ -256,7 +295,7 @@ def process_glm_info_for_hurricane(hurricane_code, box_size=6, region=None, time
         
         # Get GLM URLs for this bin's time range (process_glm_file_h5py reads directly from GCS)
         print(f"    Getting GLM URLs for bin {bin_time}...")
-        glm_urls = _get_glm_urls_for_time_range(bin_start, bin_end)
+        glm_urls = _filter_urls_by_time_range(all_hurricane_glm_urls, bin_start, bin_end)
         
         if not glm_urls:
             print(f"    No GLM files found for bin {bin_time}")
@@ -280,7 +319,7 @@ def process_glm_info_for_hurricane(hurricane_code, box_size=6, region=None, time
     # Combine all bin data
     if all_glm_data:
         merged_glm_data = pd.concat(all_glm_data, ignore_index=True)
-        
+
         # Save the GLM data
         csv_path = f'{destination_path}/groups.csv'
         merged_glm_data.to_csv(csv_path, index=False)
