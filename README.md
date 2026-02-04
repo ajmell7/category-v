@@ -206,7 +206,7 @@ full_hurdat_interp_df = hurricane_interpolator.interpolate_wind_and_pressure(int
 - `HurricaneInterpolator` - Main class for hurricane interpolation operations
   - `interpolate_path(hurricane_name, original_path_df, interval_minutes=30)` - Interpolate path for given hurricane
   - `plot_interpolated_path(interp_path_df)` - Plot the interpolated hurricane path
-  - `interpolate_wind_and_pressure(interpolated_path_df, wind_pressure_df)` - Interpolate wind and pressure based on path timestamps
+  - `interpolate_wind_and_pressure(interpolated_path_df, wind_pressure_df)` - Assign wind and pressure to closest timestamps
 ### `tropycal_helpers`
 - `get_storm_list()` - Return storm name and year for 2021 to 2023 from HurDat dataset
 
