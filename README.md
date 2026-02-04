@@ -62,6 +62,8 @@ category-v/
 │   ├── glm_helpers.py    # GLM data download and processing
 │   ├── hurricane_helpers.py  # Hurricane data manipulation
 │   ├── date_helpers.py   # Date/time utilities
+│   ├── hurricane_interpolation_helper.py   # Hurricane path interpolation, wind and pressure assigned to closest timestamp
+│   ├── tropycal_helpers.py   # Pull hurdat data using tropycal package
 │   └── __init__.py
 ├── main.py               # Main script with examples
 ├── environment.yml       # Conda environment configuration
@@ -146,6 +148,42 @@ if hurricane_info:
     print(f"Downloaded GLM data for {name}: {len(hours)} files")
 ```
 
+### Working with Interpolated Hurricane Data
+
+#### Interpolate a hurricane path
+```python
+import tropycal.tracks as tracks
+
+from helpers.tropycal_helpers import get_storm_list
+
+interp_time_length = 30  # minutes
+storm_list = get_storm_list()
+# pull example storm name and year
+test_storm_name = storm_list["name"].iloc[20]
+test_storm_year = storm_list["year"].iloc[20]
+
+# use tropycal to pull all storms 
+basin = tracks.TrackDataset(basin='both')
+storm = basin.get_storm((test_storm_name,test_storm_year))
+storm_df = storm.to_dataframe()
+
+# interpolate path
+interp_path_df = hurricane_interpolator.interpolate_path(test_storm_name, test_storm_year, storm_df, interp_time_length)
+```
+
+#### Plot an interpolated path
+```python
+# first run the code above to create the storm_df and interp_path_df
+hurricane_interpolator.plot_interpolated_path(storm_df, interp_path_df)
+```
+
+#### Interpolate the max wind speed and min pressure variables
+```python
+# first run the code above to create the storm_df and interp_path_df
+wind_pressure_df = storm_df[["time","vmax","mslp"]]
+full_hurdat_interp_df = hurricane_interpolator.interpolate_wind_and_pressure(interp_path_df,wind_pressure_df)
+```
+
 ## Helper Modules
 
 ### `glm_helpers`
@@ -163,6 +201,14 @@ if hurricane_info:
 
 ### `date_helpers`
 - `get_list_of_hours_between_dates()` - Generate list of hours between two dates
+
+### `hurricane_interpolation_helpers`
+- `HurricaneInterpolator` - Main class for hurricane interpolation operations
+  - `interpolate_path(hurricane_name, original_path_df, interval_minutes=30)` - Interpolate path for given hurricane
+  - `plot_interpolated_path(interp_path_df)` - Plot the interpolated hurricane path
+  - `interpolate_wind_and_pressure(interpolated_path_df, wind_pressure_df)` - Assign wind and pressure to closest timestamps
+### `tropycal_helpers`
+- `get_storm_list()` - Return storm name and year for 2021 to 2023 from HurDat dataset
 
 ## Data Organization
 

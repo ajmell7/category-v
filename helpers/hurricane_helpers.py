@@ -95,6 +95,32 @@ class HurdatDataManipulator:
                     path_data.append({
                         "lat": entry.lat,
                         "lon": entry.lon,
+                        "time": entry.date,
+                        "status": entry.status
+                    })
+                return pd.DataFrame(path_data)
+        return None
+    
+    def get_hurricane_wind_and_pressure(self, name, region):
+        """
+        Get the wind and pressure data (wind, pressure) for a specific hurricane (2021-2023).
+        
+        Args:
+            name: Hurricane name (ex. "IAN")
+            region: Region must be either "atl" (Atlantic) or "pac" (Pacific)
+        
+        Returns:
+            pandas.DataFrame with columns: wind, pressure, time (date)
+            Returns None if hurricane not found
+        """
+        filtered_tcs = self._get_filtered_tcs(region)
+        for tc in filtered_tcs:
+            if tc.name == name:
+                path_data = []
+                for entry in tc.tc_entries:
+                    path_data.append({
+                        "wind": entry.wind,
+                        "pressure": entry.mslp,
                         "time": entry.date
                     })
                 return pd.DataFrame(path_data)
