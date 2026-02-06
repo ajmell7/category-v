@@ -47,5 +47,3 @@ if __name__ == "__main__":
         print("=" * 50)
     else:
         print(f"GLM data file not found at {glm_csv_path}")
-
-    
