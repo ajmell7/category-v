@@ -4,77 +4,46 @@ Main file to test the helper functions.
 """
 import os
 import pandas as pd
-import tropycal.tracks as tracks
 
-from helpers.glm_helpers import get_and_parse_all_blobs_between_dates
-from helpers.hurricane_helpers import HurdatDataManipulator
-from helpers.hurricane_interpolation_helpers import HurricaneInterpolator
-from helpers.tropycal_helpers import get_storm_list
+from helpers.hurricane_helpers import (
+    list_all_hurricanes,
+    interpolate_besttrack_for_code,
+    interpolate_all_hurricanes_besttrack
+)
+from helpers.ships_helpers import save_ships_data, interpolate_ships_info_for_hurricane, interpolate_all_hurricanes_ships
+from helpers.glm_helpers import process_all_hurricanes_glm, process_glm_info_for_hurricane
+
+from helpers.orchestration_helpers import download_all_data_for_hurricane, download_all_data_for_all_hurricanes
 
 
 if __name__ == "__main__":
-    bucket_name = "gcp-public-data-goes-16"
+
+    # Download all hurricanes in the Atlantic region
+    list_all_hurricanes()
+
+    # You can inspect the full list of hurricanes in the Atlantic region in the data/global/hurricane/atl_hurricane_list_20220101_20220131.csv file
+    # It has the following columns: name, code, year, start_date, end_date, statuses_reached
+
+    # Download all data for a specific hurricane
+    NICOLE = "AL172022"
+    IAN = "AL092022"
+
+    # download_all_data_for_hurricane("AL172022")
+
+    # Analyze quality flag counts for NICOLE_2022
+    glm_csv_path = "data/storms/NICOLE_2022/glm/groups.csv"
     
-
-    # Example: Get GLM data for a specific time range
-    # Creates the directory paths to store the raw and parsed data.
-    # hours = get_and_parse_all_blobs_between_dates(bucket_name,'2022-12-13', '08', '2022-12-13', '09')
-    # print(f"Hours: {hours}")
-    
-    # Example: Use HurdatDataManipulator to get hurricane data
-    hurricane_manipulator = HurdatDataManipulator()
-    hurricane_interpolator = HurricaneInterpolator()
-    
-    # # Example: Get all hurricanes
-    # all_hurricanes = hurricane_manipulator.get_all_hurricanes(region="atl")
-    # print(f"Found {len(all_hurricanes)} hurricanes in Atlantic basin")
-    # print("First 5 hurricanes:", all_hurricanes[:5])
-    
-    # # Example: Get specific hurricane by name
-    hurricane_name = "IAN"  # Example hurricane name
-    # hurricane_info = hurricane_manipulator.get_hurricane_by_name(region="atl", name=hurricane_name)
-    # if hurricane_info:
-    #     name, start_date, end_date = hurricane_info
-    #     print(f"{name} was active from {start_date} to {end_date}")
-    
-
-    # filtered_tcs = hurricane_manipulator.get_hurricane_path(name=hurricane_name, region="atl")
-    # filtered_tcs = pd.DataFrame(filtered_tcs)
-    # filtered_tcs.to_csv("ian.csv", index=False)
-
-
-    # # Example: Get hurricane path data
-    # path_df = hurricane_manipulator.get_hurricane_path(name=hurricane_name, region="atl")
-    # if path_df is not None:
-    #     print(f"\n{hurricane_name} path data:")
-    #     print(path_df.head())
-    #     print(f"Total track points: {len(path_df)}")
-
-
-    # Example: Interpolate hurricane path with tropycal package
-    interp_time_length = 30  # in minutes
-    storm_list = get_storm_list()
-    test_storm_name = storm_list["name"].iloc[20]
-    test_storm_year = storm_list["year"].iloc[20]
-
-    basin = tracks.TrackDataset(basin='both')
-    storm = basin.get_storm((test_storm_name,test_storm_year))
-    storm_df = storm.to_dataframe()
-
-    interp_path_df = hurricane_interpolator.interpolate_path(test_storm_name, test_storm_year, storm_df, interp_time_length)
-    hurricane_interpolator.plot_interpolated_path(storm_df, interp_path_df)
-
-    wind_pressure_df = storm_df[["time","vmax","mslp"]]
-    full_hurdat_interp_df = hurricane_interpolator.interpolate_wind_and_pressure(interp_path_df,wind_pressure_df)
-    print(full_hurdat_interp_df.head(10))
-
-    # Example: Download GLM data for a hurricane's active period
-    # if start_date and end_date:
-    #     hours = get_and_parse_all_blobs_between_dates(
-    #         bucket_name,
-    #         start_date.strftime('%Y-%m-%d'),
-    #         start_date.strftime('%H'),
-    #         end_date.strftime('%Y-%m-%d'),
-    #         end_date.strftime('%H')
-    #     )
-    #     print(f"Downloaded GLM data for {hurricane_name}: {len(hours)} files")
+    if os.path.exists(glm_csv_path):
+        print(f"Reading GLM data from {glm_csv_path}...")
+        glm_df = pd.read_csv(glm_csv_path)
+        
+        print(f"\nTotal lightning groups: {len(glm_df)}")
+        print("\nQuality Flag Value Counts:")
+        print("=" * 50)
+        quality_flag_counts = glm_df['Group Quality Flag'].value_counts().sort_index()
+        for flag_value, count in quality_flag_counts.items():
+            percentage = (count / len(glm_df)) * 100
+            print(f"  {flag_value}: {count:,} ({percentage:.2f}%)")
+        print("=" * 50)
+    else:
+        print(f"GLM data file not found at {glm_csv_path}")

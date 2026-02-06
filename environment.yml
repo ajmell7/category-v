@@ -10,8 +10,15 @@ dependencies:
   - h5netcdf
   - h5py
   - xarray
+  # Data processing
   - pandas
   - numpy
+  # Visualization
+  - matplotlib
+  - cycler
+  # Geographic and astronomical libraries
+  - pyproj
+  - astropy
   - cartopy
   # Libraries for interpolation
   - geographiclib
@@ -20,5 +27,8 @@ dependencies:
     - google-cloud-storage
     - google-cloud-core
     - hurdat2parser
-    - tropycal
+    - fsspec
+    - gcsfs
+    - requests
+    - aiohttp
     - setuptools
