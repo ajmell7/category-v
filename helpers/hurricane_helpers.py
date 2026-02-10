@@ -6,10 +6,12 @@ import os
 import fsspec
 import pandas as pd
 import numpy as np
+
 from datetime import datetime
 from pyproj import Geod
 from helpers.time_helpers import get_bins_midpoint_times, get_bins_start_times, get_bins_end_times
 from constants import TS_MIN, TS_MAX, ATL_BEST_TRACK_URL, NE_PAC_BEST_TRACK_URL, DEFAULT_REGION
+from global_land_mask import globe
 
 ## Functions to save all hurricane best track data
 
@@ -366,6 +368,9 @@ def interpolate_besttrack_info(besttrack_data_df, bin_times, bin_starts, bin_end
     besttrack_interp_df['Radius of Maximum Winds'] = pd.merge_asof(besttrack_interp_df['Timestamp'], 
                                                                 besttrack_data_df[["Timestamp", "Radius of Maximum Winds"]], 
                                                                 on="Timestamp", direction="nearest")['Radius of Maximum Winds'] 
+    
+    # Add column for whether storm is over land or ocean at each timestamp
+    besttrack_interp_df["Land"] = besttrack_interp_df.apply(lambda r: "Y" if globe.is_land(r["Latitude"], r["Longitude"]) else "N",axis=1)
 
     # Save the interpolated data to CSV
     destination_path = f'data/storms/{hurricane_name}_{hurricane_start_year}/hurricane'
