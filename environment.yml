@@ -19,6 +19,8 @@ dependencies:
   # Geographic and astronomical libraries
   - pyproj
   - astropy
+  # Libraries for interpolation
+  - geographiclib
   # GCP libraries
   - pip:
     - google-cloud-storage
@@ -30,3 +32,5 @@ dependencies:
     - aiohttp
     - global-land-mask
     - cartopy
+    - tropycal
+    - setuptools
