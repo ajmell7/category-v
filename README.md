@@ -23,8 +23,21 @@ cd category-v
 
 ### 2. Create and activate the conda environment
 
-The project uses conda to manage dependencies. Create the environment from the `environment.yml` file:
+The project uses conda to manage dependencies. You can use the Makefile for easy environment management:
 
+**Using Makefile (Recommended):**
+```bash
+# Create the conda environment
+make setup
+
+# Update the environment if needed
+make update
+
+# Show activation command
+make activate
+```
+
+**Or manually:**
 ```bash
 conda env create -f environment.yml
 ```
@@ -44,13 +57,47 @@ This will create a conda environment named `category-v` with all required depend
 conda activate category-v
 ```
 
+Or use the Makefile:
+```bash
+make activate  # Shows the activation command
+```
+
 ### 4. Verify installation
 
 You can verify the installation by running:
 
 ```bash
+# Using Makefile
+make run
+
+# Or manually
 python main.py
 ```
+
+## Running as Daemon (Background Process)
+
+For long-running processes (like processing all hurricanes), you can run the script as a daemon that continues running even if you close your terminal or your screen goes blank:
+
+```bash
+# Start as daemon (background)
+make daemon
+
+# Check if daemon is running
+make status
+
+# View logs in real-time
+make logs
+
+# Stop the daemon
+make stop
+```
+
+The daemon will:
+- Continue running even if you disconnect or close your terminal
+- Save all output to timestamped log files in `logs/`
+- Save the process ID to `logs/main.pid` for easy management
+
+**Note:** Processing all hurricanes can take many hours. Running as a daemon is recommended for this use case.
 
 ## Project Structure
 
@@ -81,7 +128,9 @@ category-v/
 │   └── __init__.py
 ├── constants.py          # Global constants (time ranges, URLs, etc.)
 ├── main.py              # Main script with examples
+├── Makefile             # Makefile for environment and daemon management
 ├── environment.yml      # Conda environment configuration
+├── logs/                # Log files and PID files (created when running daemon)
 └── README.md           # This file
 ```
 
@@ -261,6 +310,48 @@ hurricane_code = "AL092022"
 bin_times = get_hurricane_bin_midpoint_times(hurricane_code, region="atl", time_interval=30)
 bin_starts = get_hurricane_bin_start_times(hurricane_code, region="atl", time_interval=30)
 bin_ends = get_hurricane_bin_end_times(hurricane_code, region="atl", time_interval=30)
+```
+
+## Makefile Commands
+
+The project includes a Makefile for convenient environment and process management:
+
+### Environment Management
+- `make setup` - Create conda environment from `environment.yml`
+- `make update` - Update conda environment from `environment.yml`
+- `make activate` - Show command to activate the conda environment
+
+### Running Scripts
+- `make run` - Run `main.py` normally (foreground)
+- `make daemon` - Run `main.py` as daemon (background process)
+- `make stop` - Stop the daemon process
+- `make status` - Check if daemon is running
+- `make logs` - View latest log file in real-time (`tail -f`)
+- `make clean` - Remove log files and PID file
+
+### Example Workflow
+
+```bash
+# First time setup
+make setup
+
+# Update environment if needed
+make update
+
+# Run a quick test (foreground)
+make run
+
+# For long-running processes, use daemon
+make daemon
+
+# Monitor progress
+make logs
+
+# Check status
+make status
+
+# Stop when done
+make stop
 ```
 
 ## Helper Modules

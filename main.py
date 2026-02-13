@@ -17,7 +17,13 @@ from helpers.orchestration_helpers import download_all_data_for_hurricane, downl
 
 
 if __name__ == "__main__":
-
+    import sys
+    
+    # Force unbuffered output
+    sys.stdout = sys.__stdout__
+    sys.stderr = sys.__stderr__
+    
+    print("Starting hurricane data processing...", flush=True)
     # Download all hurricanes in the Atlantic region
     list_all_hurricanes()
 
@@ -28,7 +34,7 @@ if __name__ == "__main__":
     NICOLE = "AL172022"
     IAN = "AL092022"
 
-    # download_all_data_for_hurricane("AL172022")
+    # download_all_data_for_hurricane(NICOLE)
 
     # Analyze quality flag counts for NICOLE_2022
     glm_csv_path = "data/storms/NICOLE_2022/glm/groups.csv"

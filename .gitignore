@@ -54,6 +54,8 @@ venv.bak/
 
 # Logs
 *.log
+logs/
+*.pid
 
 # OS
 .DS_Store
