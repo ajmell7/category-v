@@ -51,6 +51,7 @@ venv.bak/
 *.hdf5
 *.txt
 *.csv
+data/
 
 # Logs
 *.log
