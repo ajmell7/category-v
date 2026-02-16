@@ -34,7 +34,7 @@ if __name__ == "__main__":
     NICOLE = "AL172022"
     IAN = "AL092022"
 
-    # download_all_data_for_hurricane(NICOLE)
+    download_all_data_for_hurricane(IAN)
 
     # Analyze quality flag counts for NICOLE_2022
     glm_csv_path = "data/storms/NICOLE_2022/glm/groups.csv"

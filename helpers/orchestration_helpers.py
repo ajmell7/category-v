@@ -7,10 +7,10 @@ import pandas as pd
 from helpers.hurricane_helpers import interpolate_besttrack_for_code
 from helpers.ships_helpers import interpolate_ships_info_for_hurricane
 from helpers.glm_helpers import process_glm_info_for_hurricane
-from constants import TS_MIN, TS_MAX, DEFAULT_REGION
+from constants import TS_MIN, TS_MAX, DEFAULT_REGION, MAX_RMW_MULT
 
 def download_all_data_for_hurricane(hurricane_code, region=None, time_interval=30, 
-                                    box_size=6, nn_tolerance=None, cache_dir=None):
+                                    nn_tolerance=None, cache_dir=None):
     """
     Download and process all data (hurricane best track, SHIPS, and GLM) for a single hurricane.
     Processes data in order: hurricane best track -> SHIPS -> GLM.
@@ -19,7 +19,6 @@ def download_all_data_for_hurricane(hurricane_code, region=None, time_interval=3
         hurricane_code: Hurricane code (e.g., 'AL092022')
         region: Region ("atl" or "pac"). If None, determined from code (AL=atl, EP=pac)
         time_interval: Time interval in minutes for bins (default: 30)
-        box_size: Size of lat/lon box for GLM data in degrees (default: 6)
         nn_tolerance: Maximum allowable time from nearest SHIPS data (defaults to DEFAULT_NN_TOLERANCE from constants)
         cache_dir: Directory to store cached GLM files (default: None, uses temp directory)
     
@@ -94,7 +93,7 @@ def download_all_data_for_hurricane(hurricane_code, region=None, time_interval=3
     try:
         glm_path = process_glm_info_for_hurricane(
             hurricane_code,
-            box_size=box_size,
+            rmw_mult=MAX_RMW_MULT,
             region=region,
             time_interval=time_interval,
             cache_dir=cache_dir
@@ -115,7 +114,7 @@ def download_all_data_for_hurricane(hurricane_code, region=None, time_interval=3
     return results
 
 def download_all_data_for_all_hurricanes(region=None, time_interval=30, 
-                                         box_size=6, nn_tolerance=None, cache_dir=None):
+                                         nn_tolerance=None, cache_dir=None):
     """
     Download and process all data (hurricane best track, SHIPS, and GLM) for all hurricanes.
     Processes data in order: hurricane best track -> SHIPS -> GLM for each hurricane.
@@ -123,7 +122,6 @@ def download_all_data_for_all_hurricanes(region=None, time_interval=30,
     Args:
         region: Region ("atl" or "pac") (defaults to DEFAULT_REGION from constants)
         time_interval: Time interval in minutes for bins (default: 30)
-        box_size: Size of lat/lon box for GLM data in degrees (default: 6)
         nn_tolerance: Maximum allowable time from nearest SHIPS data (defaults to DEFAULT_NN_TOLERANCE from constants)
         cache_dir: Directory to store cached GLM files (default: None, uses temp directory)
     
@@ -172,7 +170,6 @@ def download_all_data_for_all_hurricanes(region=None, time_interval=30,
                 code,
                 region=region,
                 time_interval=time_interval,
-                box_size=box_size,
                 nn_tolerance=nn_tolerance,
                 cache_dir=cache_dir
             )

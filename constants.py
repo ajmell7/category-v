@@ -9,6 +9,16 @@ TS_MIN = datetime(2021, 1, 1, 0, 0, 0)
 TS_MAX = datetime(2023, 12, 31, 23, 59, 59)
 
 BIN_TIME_INTERVAL_MINUTES = 30
+
+#Meters per nautical mile
+METERS_PER_KT = 1852
+
+#Nautical miles per degree
+KTS_PER_DEGREE = 60
+
+#Number of multiples of radius of maximum winds to download
+MAX_RMW_MULT = 5
+
 # Default region for hurricane data processing
 DEFAULT_REGION = "atl"
 

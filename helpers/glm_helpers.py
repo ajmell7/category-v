@@ -1,6 +1,7 @@
 """
 Helper functions for GLM data.
 """
+import math
 import os
 import shutil
 import pandas as pd
@@ -20,17 +21,20 @@ from helpers.hurricane_helpers import (
     get_hurricane_bin_end_times,
     interpolate_besttrack_for_code
 )
-from constants import DEFAULT_REGION, TS_MIN, TS_MAX, GLM_BUCKET_NAME
+from constants import DEFAULT_REGION, TS_MIN, TS_MAX, GLM_BUCKET_NAME, METERS_PER_KT, KTS_PER_DEGREE
 
-def process_glm_file_h5py(url, center_lat, center_lon, box_size, geod, cache_dir):
+def process_glm_file_h5py(url, hurricane_code, bin_time, center_lat, center_lon, glm_max_dist, box_size, geod, cache_dir):
     """
     Get lightning group data for a lat/lon box around a hurricane center from a
     GLM file
 
     Args:
         url: URL of the GLM file
+        hurricane_code: Storm code of hurricane
+        bin_time: Midpoint time of bin for which to download GLM data
         center_lat: Latitude of hurricane center
         center_lon: Longitude of hurricane center
+        glm_max_dist: Distance around hurricane center to get data (in meters)
         box_size: Size of lat/lon box to get data. For instance, if box_size = 6
             and hurricane center is at 0,0, we get lightning data for the area
             between -6 and +6 in latitude and longitude)
@@ -90,6 +94,8 @@ def process_glm_file_h5py(url, center_lat, center_lon, box_size, geod, cache_dir
 
                 # Compile GLM data into dataframe
                 df = pd.DataFrame({
+                    "Hurricane Code": hurricane_code,
+                    "Bin Time": bin_time,
                     "Group Time": time,
                     "Group Latitude": lat,
                     "Group Longitude": lon,
@@ -100,24 +106,27 @@ def process_glm_file_h5py(url, center_lat, center_lon, box_size, geod, cache_dir
                     "Direction from Hurricane Center (deg)": az
                 })
 
+                #Filter by max distance
+                df = df[df["Distance From Hurricane Center (m)"] < glm_max_dist]
+
                 return df
 
     except Exception as e:
         print(f"Error processing {url}: {e}")
         return None
 
-def aggregate_glm_data_for_urls(glm_urls, center_lat, center_lon, box_size, geod, cache_dir):
+def aggregate_glm_data_for_urls(glm_urls, hurricane_code, bin_time, center_lat, center_lon, glm_max_dist, geod, cache_dir):
     """
     Get lightning group data for a list of URLs using process_glm_file_h5py
     function
 
     Args:
         glm_urls: List of URLs of GLM files to process
+        hurricane_code: Storm code of hurricane
+        bin_time: Midpoint time of bin for which to download GLM data
         center_lat: Latitude of hurricane center
         center_lon: Longitude of hurricane center
-        box_size: Size of lat/lon box to get data. For instance, if box_size = 6
-            and hurricane center is at 0,0, we get lightning data for the area
-            between -6 and +6 in latitude and longitude)
+        glm_max_dist: Distance around hurricane center to get data (in meters)
         geod: Geographic datum to use for calculating lightning distance from
             hurricane center
         cache_dir: Directory to store cached GLM files
@@ -125,13 +134,22 @@ def aggregate_glm_data_for_urls(glm_urls, center_lat, center_lon, box_size, geod
     Returns:
         Dataframe with group data for all the listed GLM files 
     """
+    
+    #Define box size for filtering GLM data (find rmw_mult_rmw_dist in units of
+    #longitude, with a slight 1.1 buffer factor)
+    meters_per_degree = METERS_PER_KT*KTS_PER_DEGREE
+    box_size = glm_max_dist/math.cos(center_lat*math.pi/180)/meters_per_degree*1.1
 
     #Place to store individual file outputs from process_glm_file_h5py
     dfs = []
 
     #Parallelize individual file data reads (48 workers was best in my testing)
     with ThreadPoolExecutor(max_workers=48) as executor:
-        for df in executor.map(process_glm_file_h5py, glm_urls, repeat(center_lat), repeat(center_lon), repeat(box_size), repeat(geod), repeat(cache_dir)):
+        for df in executor.map(process_glm_file_h5py, glm_urls, 
+                               repeat(hurricane_code), repeat(bin_time), 
+                               repeat(center_lat), repeat(center_lon), 
+                               repeat(glm_max_dist), repeat(box_size), 
+                               repeat(geod), repeat(cache_dir)):
             if df is not None:
                 dfs.append(df)
 
@@ -210,7 +228,7 @@ def _filter_urls_by_time_range(urls, start_date, end_date):
     
     return filtered_urls
 
-def process_glm_info_for_hurricane(hurricane_code, box_size=6, region=None, time_interval=30, cache_dir=None):
+def process_glm_info_for_hurricane(hurricane_code, rmw_mult=5, region=None, time_interval=30, cache_dir=None):
     """
     Process and aggregate GLM data for a given hurricane.
     
@@ -218,7 +236,8 @@ def process_glm_info_for_hurricane(hurricane_code, box_size=6, region=None, time
     
     Args:
         hurricane_code: Hurricane code (e.g., 'AL092022')
-        box_size: Size of lat/lon box to get data (default: 6 degrees)
+        rmw_mult: Distance around hurricane center to get data (as a multiple
+            of the radius of maximum winds)
         region: Region must be either "atl" (Atlantic) or "pac" (Pacific) (defaults to DEFAULT_REGION from constants)
         time_interval: Time interval in minutes for bins (default: 30)
         cache_dir: Directory to store cached GLM files (default: None, uses temp directory)
@@ -292,6 +311,12 @@ def process_glm_info_for_hurricane(hurricane_code, box_size=6, region=None, time
         
         center_lat = bin_besttrack['Latitude'].iloc[0]
         center_lon = bin_besttrack['Longitude'].iloc[0]
+
+        #Get radius of maximum winds distance (convert to meters)
+        rmw_dist = bin_besttrack['Radius of Maximum Winds'].iloc[0]*METERS_PER_KT
+        #Use this to calculate maximum distance from hurricane center to save
+        #GLM data
+        glm_max_dist = rmw_mult*rmw_dist
         
         # Get GLM URLs for this bin's time range (process_glm_file_h5py reads directly from GCS)
         print(f"    Getting GLM URLs for bin {bin_time}...")
@@ -303,7 +328,7 @@ def process_glm_info_for_hurricane(hurricane_code, box_size=6, region=None, time
         
         # Aggregate GLM data for this bin
         print(f"    Aggregating GLM data from {len(glm_urls)} files...")
-        bin_glm_data = aggregate_glm_data_for_urls(glm_urls, center_lat, center_lon, box_size, geod, cache_dir)
+        bin_glm_data = aggregate_glm_data_for_urls(glm_urls, hurricane_code, bin_time, center_lat, center_lon, glm_max_dist, geod, cache_dir)
         
         if bin_glm_data is not None and len(bin_glm_data) > 0:
             all_glm_data.append(bin_glm_data)
@@ -331,12 +356,13 @@ def process_glm_info_for_hurricane(hurricane_code, box_size=6, region=None, time
         print(f"No GLM data found for {hurricane_name}")
         return None
 
-def process_all_hurricanes_glm(box_size=6, region=None, time_interval=30, cache_dir=None):
+def process_all_hurricanes_glm(rmw_mult=5, region=None, time_interval=30, cache_dir=None):
     """
     Process GLM data for all hurricanes in the hurricane list CSV.
     
     Args:
-        box_size: Size of lat/lon box to get data (default: 6 degrees)
+        rmw_mult: Distance around hurricane center to get data (as a multiple
+            of the radius of maximum winds)
         region: Region ("atl" or "pac") (defaults to DEFAULT_REGION from constants)
         time_interval: Time interval in minutes for bins (default: 30)
         cache_dir: Directory to store cached GLM files (default: None, uses temp directory)
@@ -375,7 +401,7 @@ def process_all_hurricanes_glm(box_size=6, region=None, time_interval=30, cache_
         try:
             csv_path = process_glm_info_for_hurricane(
                 code,
-                box_size=box_size,
+                rmw_mult=rmw_mult,
                 region=region,
                 time_interval=time_interval,
                 cache_dir=cache_dir
