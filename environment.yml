@@ -16,6 +16,7 @@ dependencies:
   # Visualization
   - matplotlib
   - cycler
+  - plotly
   # Geographic and astronomical libraries
   - pyproj
   - astropy
@@ -35,3 +36,4 @@ dependencies:
     - cartopy
     - tropycal
     - setuptools
+    - streamlit
