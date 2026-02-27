@@ -370,7 +370,7 @@ def interpolate_besttrack_info(besttrack_data_df, bin_times, bin_starts, bin_end
                                                                 on="Timestamp", direction="nearest")['Radius of Maximum Winds'] 
     
     # Add column for whether storm is over land or ocean at each timestamp
-    besttrack_interp_df["Land"] = besttrack_interp_df.apply(lambda r: "Y" if globe.is_land(r["Latitude"], r["Longitude"]) else "N",axis=1)
+    besttrack_interp_df["Geography"] = besttrack_interp_df.apply(lambda r: "Land" if globe.is_land(r["Latitude"], r["Longitude"]) else "Ocean",axis=1)
 
     # Save the interpolated data to CSV
     destination_path = f'data/storms/{hurricane_name}_{hurricane_start_year}/hurricane'
