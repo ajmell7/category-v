@@ -1,13 +1,13 @@
 #Imports
 import matplotlib.pyplot as plt
 import pandas as pd
-import streamlit as st
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import plotly.express as px
 import plotly.graph_objects as go
 import contextily as cx
 import io
+import traceback
 
 def nautical_miles_to_meters(nautical_miles):
     """
@@ -24,7 +24,6 @@ def nautical_miles_to_meters(nautical_miles):
     return meters
 
 
-@st.cache_data
 def pull_hurricane_data(all_hurricanes, hurricane_name):
     # Select specific hurricane and pull corresponding data
     specific_hurricane = all_hurricanes[all_hurricanes['name'] == hurricane_name]
@@ -35,6 +34,14 @@ def pull_hurricane_data(all_hurricanes, hurricane_name):
     best_track_df = pd.read_csv(f'data/storms/{hurricane_name}_{hurricane_year}/hurricane/besttrack.csv', parse_dates=['Timestamp'])
     return hurricane_code, hurricane_year, glm_df, best_track_df
 
+def pull_minimal_hurricane_data(all_hurricanes, hurricane_name):
+    # Select specific hurricane and pull corresponding data
+    specific_hurricane = all_hurricanes[all_hurricanes['name'] == hurricane_name]
+    hurricane_code = specific_hurricane['code'].values[0]
+    hurricane_year = specific_hurricane['year'].values[0]
+
+    best_track_df = pd.read_csv(f'data/storms/{hurricane_name}_{hurricane_year}/hurricane/besttrack.csv', parse_dates=['Timestamp'])
+    return hurricane_code, hurricane_year, best_track_df
 
 def get_lightining_groups(bin_times, bin_starts, bin_ends, best_track_df, glm_df):
     # Get lightning group counts for each bin of histogram
@@ -69,8 +76,9 @@ def get_lightining_groups(bin_times, bin_starts, bin_ends, best_track_df, glm_df
             lightning_groups_inner_core.append([bin_time,num_groups_inner_core, physical_geography])
             lightning_groups_outer_core.append([bin_time,num_groups_outer_core, physical_geography])
             lightning_groups_all.append([bin_time,num_groups_all, physical_geography])
-        except:
-            print('No Lightning')
+        except Exception as e:
+            print(f'No Lightning for bin {bin_time}: {e}')
+            traceback.print_exc()
 
     lightning_groups_inner_core_df = pd.DataFrame(lightning_groups_inner_core, columns=["time", "groups", "geography"])
     lightning_groups_outer_core_df = pd.DataFrame(lightning_groups_outer_core, columns=["time", "groups", "geography"])
