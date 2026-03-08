@@ -25,6 +25,7 @@ dependencies:
   - pip:
     - google-cloud-storage
     - google-cloud-core
+    - protobuf
     - hurdat2parser
     - fsspec
     - gcsfs
