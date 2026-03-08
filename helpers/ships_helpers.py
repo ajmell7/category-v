@@ -9,46 +9,7 @@ from datetime import datetime
 from helpers.hurricane_helpers import get_hurricane_bin_midpoint_times, get_hurricane_bin_start_times, get_hurricane_bin_end_times
 from constants import TS_MIN, TS_MAX, DEFAULT_REGION, ATL_SHIPS_URL, NE_PAC_SHIPS_URL, DEFAULT_NN_TOLERANCE
 
-# Helper functions to read SHIPS data
-
-def _count_entries_in_range(ships_url):
-    """
-    Helper function to count how many entries are in the time range.
-    This allows us to show percentage progress.
-    """
-    count = 0
-    with fsspec.open(ships_url, mode="rt") as fobj:
-        while True:
-            result = find_ships_code(fobj, 'HEAD')
-            if result is None:
-                break
-            fobj, header_split = result
-            
-            try:
-                hurr_name, ts_day, ts_hr, max_sust, lat_hem, lon_hem, min_pres,\
-                hurr_code, line_code = header_split
-            except (ValueError, IndexError):
-                continue
-
-            try:
-                ts_full = datetime.strptime((ts_day+ts_hr),"%y%m%d%H")
-            except (ValueError, TypeError):
-                continue
-                
-            if (ts_full >= TS_MIN) and (ts_full <= TS_MAX):
-                count += 1
-                # Skip to next section
-                result = find_ships_code(fobj, 'LAST')
-                if result is not None:
-                    fobj, last_split = result
-            else:
-                # Skip to next section
-                result = find_ships_code(fobj, 'LAST')
-                if result is not None:
-                    fobj, last_split = result
-    
-    return count
-
+# Helper function to read SHIPS data
 def find_ships_code(fobj, desired_code):
     """
     Helper function for finding a specific line code in SHIPS data files
@@ -105,15 +66,9 @@ def read_ships_data(region=None):
 
     print(f"Reading SHIPS data from {ships_url}")
     print(f"Time range: {TS_MIN} to {TS_MAX}")
-    print("Counting entries in time range...")
-    
-    # Count total entries in range for progress reporting
-    total_entries = _count_entries_in_range(ships_url)
-    print(f"Found {total_entries} entries in time range. Processing...")
     
     ships_info_array = []
     processed_count = 0
-    skipped_count = 0
 
     with fsspec.open(ships_url, mode="rt") as fobj:
         while True:
@@ -134,7 +89,6 @@ def read_ships_data(region=None):
                 continue
                 
             if ((ts_full < TS_MIN) or (ts_full > TS_MAX)):
-                skipped_count += 1
                 continue
             
             result = find_ships_code(fobj, 'SHRD')
@@ -161,14 +115,8 @@ def read_ships_data(region=None):
 
             ships_info_array.append([hurr_code, ts_full, shear_850_200_mag, shear_850_200_dir])
             processed_count += 1
-            
-            if total_entries > 0:
-                percentage = (processed_count / total_entries) * 100
-                update_interval = max(10, total_entries // 10)
-                if processed_count % update_interval == 0:
-                    print(f"  Progress: {processed_count}/{total_entries} ({percentage:.1f}%)", end='\r')
     
-    print(f"\nCompleted: Processed {processed_count}/{total_entries} entries, skipped {skipped_count} entries")
+    print(f"Completed: Processed {processed_count} entries")
     
     #Convert ships info array to dataframe
     ships_info_df = pd.DataFrame(ships_info_array,
