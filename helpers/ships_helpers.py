@@ -7,7 +7,7 @@ import pandas as pd
 import fsspec
 from datetime import datetime
 from helpers.hurricane_helpers import get_hurricane_bin_midpoint_times, get_hurricane_bin_start_times, get_hurricane_bin_end_times
-from constants import TS_MIN, TS_MAX, DEFAULT_REGION, ATL_SHIPS_URL, NE_PAC_SHIPS_URL, DEFAULT_NN_TOLERANCE
+from constants import TS_MIN, TS_MAX, DEFAULT_REGION, ATL_SHIPS_URL, NE_PAC_SHIPS_URL, DEFAULT_NN_TOLERANCE, BIN_TIME_INTERVAL_MINUTES
 
 # Helper function to read SHIPS data
 def find_ships_code(fobj, desired_code):
@@ -193,7 +193,7 @@ def interpolate_ships_info(ships_data_df, bin_times, bin_starts, bin_ends, nn_to
 
     return ships_interp_df
 
-def interpolate_ships_info_for_hurricane(hurricane_code, nn_tolerance=None, region=None, time_interval=30):
+def interpolate_ships_info_for_hurricane(hurricane_code, nn_tolerance=DEFAULT_NN_TOLERANCE, region=None, time_interval=BIN_TIME_INTERVAL_MINUTES):
     """
     Interpolate SHIPS data for a given hurricane.
 
@@ -208,9 +208,6 @@ def interpolate_ships_info_for_hurricane(hurricane_code, nn_tolerance=None, regi
     """
     if region is None:
         region = DEFAULT_REGION
-    
-    if nn_tolerance is None:
-        nn_tolerance = DEFAULT_NN_TOLERANCE
     
     # Get hurricane name and year from the hurricane list
     list_csv_path = f'data/global/hurricane/{region}_hurricane_list_{TS_MIN.strftime("%Y%m%d")}_{TS_MAX.strftime("%Y%m%d")}.csv'
@@ -257,23 +254,20 @@ def interpolate_ships_info_for_hurricane(hurricane_code, nn_tolerance=None, regi
 
     return destination_path
 
-def interpolate_all_hurricanes_ships(region=None, time_interval=30, nn_tolerance=None):
+def interpolate_all_hurricanes_ships(region=None, time_interval=BIN_TIME_INTERVAL_MINUTES, nn_tolerance=DEFAULT_NN_TOLERANCE):
     """
     Interpolate SHIPS data for all hurricanes in the hurricane list CSV.
     
     Args:
-        region: Region ("atl" or "pac") (defaults to DEFAULT_REGION from constants)
-        time_interval: Time interval in minutes for bins (default: 30)
-        nn_tolerance: Maximum allowable time from nearest SHIPS data (defaults to DEFAULT_NN_TOLERANCE from constants)
+        region: Region ("atl" or "pac") (defaults to DEFAULT_REGION)
+        time_interval: Time interval in minutes for bins (default: BIN_TIME_INTERVAL_MINUTES)
+        nn_tolerance: Maximum allowable time from nearest SHIPS data (defaults to DEFAULT_NN_TOLERANCE)
     
     Returns:
         Dictionary mapping hurricane codes to their interpolated data paths
     """
     if region is None:
         region = DEFAULT_REGION
-    
-    if nn_tolerance is None:
-        nn_tolerance = DEFAULT_NN_TOLERANCE    
     
     # Load hurricane list
     list_csv_path = f'data/global/hurricane/{region}_hurricane_list_{TS_MIN.strftime("%Y%m%d")}_{TS_MAX.strftime("%Y%m%d")}.csv'
