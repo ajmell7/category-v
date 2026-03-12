@@ -40,23 +40,23 @@ for hurricane_name in hurricane_names:
     # Get Lightning group dataframe for each bin time
     lightning_groups_inner_core_df, lightning_groups_outer_core_df, lightning_groups_all_df = get_lightining_groups(bin_times, bin_starts, bin_ends, best_track_df, glm_df)
 
-    # fig = create_histogram(lightning_groups_inner_core_df,lightning_groups_outer_core_df,best_track_df,hurricane_name,hurricane_year)
-    # # Save the figure
-    # fig.savefig(f"plots/histograms/{hurricane_name}_{hurricane_year}_histogram.png",
-    #             dpi=300,
-    #             bbox_inches="tight")
+    fig = create_histogram(lightning_groups_inner_core_df,lightning_groups_outer_core_df,best_track_df,hurricane_name,hurricane_year)
+    # Save the figure
+    fig.savefig(f"plots/histograms/{hurricane_name}_{hurricane_year}_histogram.png",
+                dpi=300,
+                bbox_inches="tight")
     
 
-    # Save all inner core histograms
-    fig = create_inner_or_outer_core_histogram("inner", lightning_groups_inner_core_df, best_track_df, hurricane_name, hurricane_year)
-    fig.savefig(f"plots/histograms/outer_core/{hurricane_name}_{hurricane_year}_histogram.png",
-                dpi=300,
-                bbox_inches="tight")
+    # # Save all inner core histograms
+    # fig = create_inner_or_outer_core_histogram("inner", lightning_groups_inner_core_df, best_track_df, hurricane_name, hurricane_year)
+    # fig.savefig(f"plots/histograms/inner_core/{hurricane_name}_{hurricane_year}_histogram.png",
+    #             dpi=300,
+    #             bbox_inches="tight")
 
-    # Save all outer core histograms
-    fig = create_inner_or_outer_core_histogram("outer", lightning_groups_outer_core_df, best_track_df, hurricane_name, hurricane_year)
-    fig.savefig(f"plots/histograms/inner_core/{hurricane_name}_{hurricane_year}_histogram.png",
-                dpi=300,
-                bbox_inches="tight")
+    # # Save all outer core histograms
+    # fig = create_inner_or_outer_core_histogram("outer", lightning_groups_outer_core_df, best_track_df, hurricane_name, hurricane_year)
+    # fig.savefig(f"plots/histograms/outer_core/{hurricane_name}_{hurricane_year}_histogram.png",
+    #             dpi=300,
+    #             bbox_inches="tight")
     
     plt.close(fig)
