@@ -63,7 +63,7 @@ def get_lightining_groups(bin_times, bin_starts, bin_ends, best_track_df, glm_df
             inner_core_filter = 1.5*rmw_meters
             outer_core_filter = 5*rmw_meters
             # get land vs ocean at bin time 
-            physical_geography = best_track_df[best_track_df['Timestamp'] == bin_time]['Geography'].values[0]
+            physical_geography = best_track_df[best_track_df['Timestamp'] == bin_time]['Land'].values[0]
             # filter bin time
             filter_glm_data = glm_df[(glm_df["Group Time"] >= bin_start) & (glm_df["Group Time"] < bin_end)]
             # filter data to only include lightning within 400 km of hurricane center
@@ -80,12 +80,92 @@ def get_lightining_groups(bin_times, bin_starts, bin_ends, best_track_df, glm_df
             print(f'No Lightning for bin {bin_time}: {e}')
             traceback.print_exc()
 
-    lightning_groups_inner_core_df = pd.DataFrame(lightning_groups_inner_core, columns=["time", "groups", "geography"])
-    lightning_groups_outer_core_df = pd.DataFrame(lightning_groups_outer_core, columns=["time", "groups", "geography"])
-    lightning_groups_all_df = pd.DataFrame(lightning_groups_all, columns=["time", "groups", "geography"])
+    lightning_groups_inner_core_df = pd.DataFrame(lightning_groups_inner_core, columns=["time", "groups", "land"])
+    lightning_groups_outer_core_df = pd.DataFrame(lightning_groups_outer_core, columns=["time", "groups", "land"])
+    lightning_groups_all_df = pd.DataFrame(lightning_groups_all, columns=["time", "groups", "land"])
     return lightning_groups_inner_core_df, lightning_groups_outer_core_df, lightning_groups_all_df
 
 
+
+def create_inner_or_outer_core_histogram(inner_or_outer, lightning_groups_df, best_track_df, hurricane_name, hurricane_year):
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    fig.suptitle(f"{hurricane_name} {hurricane_year}: GLM Groups \n (blue = water, orange = land)", fontsize=16)
+
+    def plot_panel(ax, lightning_df):
+        geo_colors = {
+            "N": "tab:blue",
+            "Y": "tab:orange"
+        }
+
+        geo_colors = lightning_df["land"].map(geo_colors)
+
+        # Left axis: GLM group count
+        ax.bar(
+            lightning_df['time'],
+            lightning_df['groups'],
+            width=0.03,
+            color=geo_colors,
+            label='GLM Groups'
+        )
+        if inner_or_outer == "inner":
+            ax.set_title("r <= 1.5RMW")
+        else:
+            ax.set_title("1.5RMW < r <= 5RMW")
+        ax.set_ylabel('Group Count')
+        ax.tick_params(axis='x', labelrotation=90)
+
+        # Right axis 1: Pressure
+        ax_r1 = ax.twinx()
+        ax_r1.plot(
+            best_track_df['Timestamp'],
+            best_track_df['Minimum Pressure'],
+            color='tab:green',
+            linewidth=1,
+            label='Pressure (mb)'
+        )
+        ax_r1.set_ylim(800, 1100)
+        ax_r1.set_ylabel('Pressure (mb)', color='tab:green')
+
+        # Right axis 2: Wind speed
+        ax_r2 = ax.twinx()
+        ax_r2.plot(
+            best_track_df['Timestamp'],
+            best_track_df['Maximum Sustained Winds'],
+            color='tab:red',
+            linewidth=1,
+            label='Sustained Wind (knots)'
+        )
+        ax_r2.set_ylim(0, 200)
+        ax_r2.set_ylabel('Sustained Wind (knots)', color='tab:red')
+        ax_r2.spines['right'].set_position(('outward', 60))
+
+        # Right axis 3: RMW
+        ax_r3 = ax.twinx()
+        ax_r3.plot(
+            best_track_df['Timestamp'],
+            best_track_df['Radius of Maximum Winds'],
+            color='tab:purple',
+            linewidth=1,
+            label='RMW (nautical miles)'
+        )
+        ax_r3.set_ylim(0, 200)
+        ax_r3.set_ylabel('RMW (nautical miles)', color='tab:purple')
+        ax_r3.spines['right'].set_position(('outward', 120))
+
+        # Combined legend
+        lines, labels = [], []
+        for a in [ax, ax_r1, ax_r2, ax_r3]:
+            l, lab = a.get_legend_handles_labels()
+            lines.extend(l)
+            labels.extend(lab)
+
+        ax.legend(lines, labels, loc='best')
+
+    plot_panel(ax, lightning_groups_df)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    return fig
 
 def create_histogram(lightning_groups_inner_core_df,lightning_groups_outer_core_df,best_track_df,hurricane_name,hurricane_year):
     fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharey=False)
@@ -94,10 +174,10 @@ def create_histogram(lightning_groups_inner_core_df,lightning_groups_outer_core_
     # Helper to draw one panel
     def plot_panel(ax, lightning_df, title):
         geo_colors = {
-            "Ocean": "tab:blue",
-            "Land": "tab:orange"
+            "N": "tab:blue",
+            "Y": "tab:orange"
         }
-        geo_colors = lightning_df["geography"].map(geo_colors)
+        geo_colors = lightning_df["land"].map(geo_colors)
         # Left axis: GLM group count
         ax.bar(
             lightning_df['time'],
