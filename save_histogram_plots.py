@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 
 from helpers.plot_helpers import (
     pull_hurricane_data, 
-    get_lightining_groups, 
+    get_lightining_groups,
+    create_inner_or_outer_core_histogram,
     create_histogram, 
     plot_hurricane_path_interactive,
     plot_bin_lightning
@@ -21,7 +22,7 @@ from helpers.hurricane_helpers import (
 
 def load_hurricane_list():
     return pd.read_csv(
-        "data/global/hurricane/atl_hurricane_list_20210101_20231231.csv"
+        "data/global/hurricane/atl_hurricane_list_20190101_20231231.csv"
     )
 
 all_hurricanes = load_hurricane_list()
@@ -39,10 +40,22 @@ for hurricane_name in hurricane_names:
     # Get Lightning group dataframe for each bin time
     lightning_groups_inner_core_df, lightning_groups_outer_core_df, lightning_groups_all_df = get_lightining_groups(bin_times, bin_starts, bin_ends, best_track_df, glm_df)
 
-    fig = create_histogram(lightning_groups_inner_core_df,lightning_groups_outer_core_df,best_track_df,hurricane_name,hurricane_year)
+    # fig = create_histogram(lightning_groups_inner_core_df,lightning_groups_outer_core_df,best_track_df,hurricane_name,hurricane_year)
+    # # Save the figure
+    # fig.savefig(f"plots/histograms/{hurricane_name}_{hurricane_year}_histogram.png",
+    #             dpi=300,
+    #             bbox_inches="tight")
+    
 
-    # Save the figure
-    fig.savefig(f"plots/histograms/{hurricane_name}_{hurricane_year}_histogram.png",
+    # Save all inner core histograms
+    fig = create_inner_or_outer_core_histogram("inner", lightning_groups_inner_core_df, best_track_df, hurricane_name, hurricane_year)
+    fig.savefig(f"plots/histograms/outer_core/{hurricane_name}_{hurricane_year}_histogram.png",
+                dpi=300,
+                bbox_inches="tight")
+
+    # Save all outer core histograms
+    fig = create_inner_or_outer_core_histogram("outer", lightning_groups_outer_core_df, best_track_df, hurricane_name, hurricane_year)
+    fig.savefig(f"plots/histograms/inner_core/{hurricane_name}_{hurricane_year}_histogram.png",
                 dpi=300,
                 bbox_inches="tight")
     

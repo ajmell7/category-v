@@ -5,7 +5,7 @@ Constants for the category-v project.
 from datetime import datetime, timedelta
 
 # Time range for data processing (2021-2023)
-TS_MIN = datetime(2021, 1, 1, 0, 0, 0)
+TS_MIN = datetime(2019, 1, 1, 0, 0, 0)
 TS_MAX = datetime(2023, 12, 31, 23, 59, 59)
 
 BIN_TIME_INTERVAL_MINUTES = 30
