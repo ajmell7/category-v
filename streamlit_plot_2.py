@@ -16,12 +16,13 @@ st.title("Hurricane Plots")
 # Get all hurricane information
 @st.cache_data
 def load_hurricane_list():
-    return pd.read_csv("data/global/hurricane/atl_hurricane_list_20210101_20231231.csv")
+    return pd.read_csv("data/global/hurricane/atl_hurricane_list_20190101_20231231.csv")
 
 all_hurricanes = load_hurricane_list()
 hurricane_names = sorted(all_hurricanes["name"].unique())
 
-t_numbers = ["1_5", "2", "2_5", "3", "3_5", "4", "4_5", "5", "5_5", "6", "6_5", "7", "7_5", "8"]
+t_numbers = ["All", "1_5", "2", "2_5", "3", "3_5", "4", "4_5", "5", "5_5", "6", "6_5", "7", "7_5", "8"]
+intensification_stages = ["All", "NC", "I", "RI", "W", "RW"]
 
 
 col1, col2, col3 = st.columns([1, 1, 3])  # 1 = small, 4 = large
@@ -52,21 +53,22 @@ with tab2:
 
 with tab3:
     st.header("Density GIFs")
-    import streamlit as st
+    try:
+        file_ = open(f"plots/density_gifs/{hurricane_name}_{hurricane_year}_density.gif", "rb")
+        contents = file_.read()
+        data_url = base64.b64encode(contents).decode("utf-8")
+        file_.close()
 
-    file_ = open(f"plots/density_gifs/{hurricane_name}_{hurricane_year}_density.gif", "rb")
-    contents = file_.read()
-    data_url = base64.b64encode(contents).decode("utf-8")
-    file_.close()
-
-    st.markdown(
-        f'''
-        <img src="data:image/gif;base64,{data_url}" 
-             alt="density gif" 
-             width=50%>
-        ''',
-        unsafe_allow_html=True,
-    )
+        st.markdown(
+            f'''
+            <img src="data:image/gif;base64,{data_url}" 
+                alt="density gif" 
+                width=50%>
+            ''',
+            unsafe_allow_html=True,
+        )
+    except:
+        st.warning("No density GIF available for this hurricane.")
 
 with tab4:
     st.header("Shear Plots (all)")
@@ -75,20 +77,42 @@ with tab4:
     ## Create selectbox for T-number
     col1, col2, col3 = st.columns([1, 1, 3])  # 1 = small, 4 = large
     with col1:
-        t_number = st.selectbox("Select T Number", t_numbers, key="t_number_selectbox_all")
+        t_number = st.selectbox("T Number", t_numbers, key="t_number_selectbox_all")
+    with col2:
+        intensification_stage = st.selectbox("Intensification Stage", intensification_stages, key="intensity_selectbox_all")
     ##############
 
     col1, col2 = st.columns([3, 3])  # 1 = small, 4 = large
     
     with col1:
         st.caption("Shear Plots using Azimuth")
-        image = Image.open(f'plots/shear_plots_all/azimuth/All_Hurricanes_T-{t_number}_azimuth.png')
-        st.image(image, width="stretch")
+        try:
+            if t_number == "All" and intensification_stage == "All":
+                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_All_Hurricanes__azimuth.png')
+            elif intensification_stage == "All":
+                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_All_Hurricanes_T__{t_number}__azimuth.png')
+            elif t_number == "All":
+                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_All_Hurricanes_{intensification_stage}_Only__azimuth.png')
+            else:
+                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_All_Hurricanes_T__{t_number}_{intensification_stage}_Only__azimuth.png')
+            st.image(image, width="stretch")
+        except:
+            st.warning("No plot available for this combination of T-number and Intensification Stage.")
 
     with col2:
         st.caption("Shear Plots using RMW")
-        image = Image.open(f'plots/shear_plots_all/rmwxy/All_Hurricanes_T-{t_number}_RMWXY.png')
-        st.image(image, width="stretch")
+        try:
+            if t_number == "All" and intensification_stage == "All":
+                image = Image.open(f'plots/shear_plots/rmwxy/Atlantic_Basin_All_Hurricanes__RMWXY.png')
+            elif intensification_stage == "All":
+                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_All_Hurricanes_T__{t_number}__RMWXY.png')
+            elif t_number == "All":
+                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_All_Hurricanes_{intensification_stage}_Only__RMWXY.png')
+            else:
+                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_All_Hurricanes_T__{t_number}_{intensification_stage}_Only__RMWXY.png')
+            st.image(image, width="stretch")
+        except:
+            st.warning("No plot available for this combination of T-number and Intensification Stage.")
 
 with tab5:
     st.header("Shear Plots (individual)")
@@ -97,15 +121,39 @@ with tab5:
     ## Create selectbox for T-number
     col1, col2, col3 = st.columns([1, 1, 3])  # 1 = small, 4 = large
     with col1:
-        t_number = st.selectbox("Select T Number", t_numbers, key="t_number_selectbox_individual")
+        t_number = st.selectbox("T Number", t_numbers, key="t_number_selectbox_individual")
+    with col2:
+        intensification_stage = st.selectbox("Intensification Stage", intensification_stages, key="intensity_selectbox_individual")
     ##############
 
     col1, col2 = st.columns([3, 3])  # 1 = small, 4 = large
     
     with col1:
         st.caption("Shear Plots using Azimuth")
+        try:
+            if t_number == "All" and intensification_stage == "All":
+                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_Hurricane_{hurricane_name.capitalize()}__azimuth.png')
+            elif intensification_stage == "All":
+                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_Hurricane_{hurricane_name.capitalize()}_T__{t_number}__azimuth.png')
+            elif t_number == "All":
+                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_Hurricane_{hurricane_name.capitalize()}_{intensification_stage}_Only__azimuth.png')
+            else:
+                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_Hurricane_{hurricane_name.capitalize()}_T__{t_number}_{intensification_stage}_Only__azimuth.png')
+            st.image(image, width="stretch")
+        except:
+            st.warning("No plot available for this combination of T-number and Intensification Stage.")
 
     with col2:
         st.caption("Shear Plots using RMW")
-    # image = Image.open(f'plots/shear_plots/{hurricane_name}_{hurricane_year}_shear.png')
-    # st.image(image, width="stretch")
+        try:
+            if t_number == "All" and intensification_stage == "All":
+                image = Image.open(f'plots/shear_plots/rmwxy/Atlantic_Basin_Hurricane_{hurricane_name.capitalize()}__RMWXY.png')
+            elif intensification_stage == "All":
+                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_Hurricane_{hurricane_name.capitalize()}_T__{t_number}__RMWXY.png')
+            elif t_number == "All":
+                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_Hurricane_{hurricane_name.capitalize()}_{intensification_stage}_Only__RMWXY.png')
+            else:
+                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_Hurricane_{hurricane_name.capitalize()}_T__{t_number}_{intensification_stage}_Only__RMWXY.png')
+            st.image(image, width="stretch")
+        except:
+            st.warning("No plot available for this combination of T-number and Intensification Stage.")
