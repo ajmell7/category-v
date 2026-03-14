@@ -249,6 +249,20 @@ def setup_map_plot(extent_bounds):
     min_lon, max_lon, min_lat, max_lat = extent_bounds
     ax.set_extent([min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree())
     
+    # Add gridlines with labels
+    gl = ax.gridlines(
+        crs=ccrs.PlateCarree(),
+        draw_labels=True,
+        linewidth=0.5,
+        color='gray',
+        alpha=0.5,
+        linestyle='--'
+    )
+    gl.top_labels = False
+    gl.right_labels = False
+    gl.xlabel_style = {'size': 14}
+    gl.ylabel_style = {'size': 14}
+    
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
     
@@ -296,11 +310,11 @@ def plot_density_frame(ax, density_counts, lon_bins, lat_bins, max_log, cell_siz
     marker = None
     if center:
         center_lat, center_lon = center
-        # Plot hurricane center marker (black X)
+        # Plot hurricane center marker (black +)
         marker_line = ax.plot(
             center_lon, center_lat,
-            marker='x',
-            markersize=6,
+            marker='+',
+            markersize=4,
             markeredgecolor='black',
             markeredgewidth=1,
             markerfacecolor='none',  # No fill
@@ -309,21 +323,19 @@ def plot_density_frame(ax, density_counts, lon_bins, lat_bins, max_log, cell_siz
             zorder=10  # Ensure marker appears on top
         )
         marker = marker_line[0]  # plot() returns a list, get the first element
-        title = (f'GLM Lightning Density (Quality Flag = {quality_flag})\n'
+        title = (f'GLM Lightning Density\n'
                 f'Time: {bin_time}\n'
-                f'Hurricane Center: ({center_lat:.2f}°, {center_lon:.2f}°)\n'
-                f'Cell Size: {cell_size}° x {cell_size}°')
+                f'Hurricane Center: ({center_lat:.2f}°, {center_lon:.2f}°)')
     else:
-        title = (f'GLM Lightning Density (Quality Flag = {quality_flag})\n'
-                f'Time: {bin_time}\n'
-                f'Cell Size: {cell_size}° x {cell_size}°')
+        title = (f'GLM Lightning Density\n'
+                f'Time: {bin_time}')
     
-    ax.set_title(title)
+    ax.set_title(title, fontsize=16)
     
     return im, marker
 
 
-def plot_glm_density_gif(glm_data_path, besttrack_path=None, quality_flag=0, save_path=None, interval=100, fps=10, cell_size=0.1, box_size=10):
+def plot_glm_density_gif(glm_data_path, besttrack_path=None, quality_flag=0, save_path=None, interval=100, fps=10, cell_size=0.1, box_size=8):
     """
     Read GLM data from CSV and create an animated GIF of lightning density plots using Bin Time as frames.
     
@@ -376,6 +388,14 @@ def plot_glm_density_gif(glm_data_path, besttrack_path=None, quality_flag=0, sav
     
     fig, ax = setup_map_plot(first_extent)
     
+    # Store reference to gridlines for updating in animation
+    current_gridlines = [None]
+    # Find the gridlines object created in setup_map_plot
+    for child in ax.get_children():
+        if hasattr(child, 'xlocator') and hasattr(child, 'ylocator'):
+            current_gridlines[0] = child
+            break
+    
     # Create initial density plot for first frame
     first_lon_bins = np.arange(first_min_lon, first_max_lon + cell_size, cell_size)
     first_lat_bins = np.arange(first_min_lat, first_max_lat + cell_size, cell_size)
@@ -384,8 +404,11 @@ def plot_glm_density_gif(glm_data_path, besttrack_path=None, quality_flag=0, sav
         cell_size, quality_flag, first_time, besttrack_data
     )
     
-    # Create colorbar
+    # Create colorbar with larger label
     cbar = plt.colorbar(first_im, ax=ax, label='Lightning Groups per Cell (log₁₀ scale)')
+    cbar.set_label('Lightning Groups per Cell (log₁₀ scale)', size=14)
+    # Make the tick labels (scale numbers) bigger
+    cbar.ax.tick_params(labelsize=14)
     
     # Step 8: Create animation function
     # Store references to current pcolormesh and marker for removal
@@ -402,6 +425,10 @@ def plot_glm_density_gif(glm_data_path, besttrack_path=None, quality_flag=0, sav
         if current_marker[0] is not None:
             current_marker[0].remove()
         
+        # Remove previous gridlines (if they exist)
+        if current_gridlines[0] is not None:
+            current_gridlines[0].remove()
+        
         # Get data for this frame
         current_time = unique_times[frame_index]
         density_counts, frame_min_lat, frame_max_lat, frame_min_lon, frame_max_lon = density_grids[current_time]
@@ -409,6 +436,21 @@ def plot_glm_density_gif(glm_data_path, besttrack_path=None, quality_flag=0, sav
         # Update extent
         ax.set_extent([frame_min_lon, frame_max_lon, frame_min_lat, frame_max_lat], 
                       crs=ccrs.PlateCarree())
+        
+        # Create new gridlines for this frame's extent
+        gl = ax.gridlines(
+            crs=ccrs.PlateCarree(),
+            draw_labels=True,
+            linewidth=0.5,
+            color='gray',
+            alpha=0.5,
+            linestyle='--'
+        )
+        gl.top_labels = False
+        gl.right_labels = False
+        gl.xlabel_style = {'size': 14}
+        gl.ylabel_style = {'size': 14}
+        current_gridlines[0] = gl
         
         # Create bin edges for this frame
         lon_bins = np.arange(frame_min_lon, frame_max_lon + cell_size, cell_size)
