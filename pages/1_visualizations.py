@@ -15,13 +15,6 @@ import os
 st.set_page_config(layout="wide")
 st.title("Tropical Storm Visualization Tool")
 
-# Create tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["Lightning Group Histogram", 
-                                        "Hurricane Path", 
-                                        "Density GIFs", 
-                                        "Shear Plots (all)", 
-                                        "Shear Plots (individual)"])
-
 # Get all hurricane information (only if available)
 try:
     @st.cache_data
@@ -37,7 +30,7 @@ except:
 t_numbers = ["All", "1_5", "2", "2_5", "3", "3_5", "4", "4_5", "5", "5_5", "6", "6_5", "7", "7_5", "8"]
 intensification_stages = ["All", "NC", "I", "RI", "W", "RW"]
 
-# Only show other tabs if hurricane data is available
+# Hurricane selection at the top of the page
 if len(hurricane_names) > 0:
     col1, col2, col3 = st.columns([1, 1, 3])
     
@@ -51,6 +44,14 @@ else:
     hurricane_code = None
     hurricane_year = None
     best_track_df = None
+    st.warning("Please complete the setup steps in the 'Home/Installation' page first.")
+
+# Create tabs
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Lightning Group Histogram", 
+                                        "Hurricane Path", 
+                                        "Density GIFs", 
+                                        "Shear Plots (all)", 
+                                        "Shear Plots (individual)"])
 
 with tab1:
     st.header("Lightning Group Histogram")
@@ -87,50 +88,51 @@ with tab3:
         glm_data_path = f"data/storms/{hurricane_name}_{hurricane_year}/glm/groups.csv"
         besttrack_path = f"data/storms/{hurricane_name}_{hurricane_year}/hurricane/besttrack.csv"
         
-        if os.path.exists(gif_path):
-            # GIF exists, display it
-            try:
-                file_ = open(gif_path, "rb")
-                contents = file_.read()
-                data_url = base64.b64encode(contents).decode("utf-8")
-                file_.close()
-
-                st.markdown(
-                    f'''
-                    <img src="data:image/gif;base64,{data_url}" 
-                        alt="density gif" 
-                        width=50%>
-                    ''',
-                    unsafe_allow_html=True,
-                )
-            except Exception as e:
-                st.error(f"Error loading GIF: {e}")
+        # Check if required data files exist
+        if not os.path.exists(glm_data_path):
+            st.warning(f"GLM data not found at `{glm_data_path}`. Please complete Step 5 in the Home/Installation page to download GLM data first.")
+        elif not os.path.exists(besttrack_path):
+            st.warning(f"Best track data not found at `{besttrack_path}`. Please complete Step 2 in the Home/Installation page first.")
         else:
-            # GIF doesn't exist, check if GLM data exists
-            if not os.path.exists(glm_data_path):
-                st.warning(f"GLM data not found at `{glm_data_path}`. Please complete Step 5 in the Home/Installation page to download GLM data first.")
-            elif not os.path.exists(besttrack_path):
-                st.warning(f"Best track data not found at `{besttrack_path}`. Please complete Step 2 in the Home/Installation page first.")
+            # Show GIF if it exists
+            if os.path.exists(gif_path):
+                try:
+                    file_ = open(gif_path, "rb")
+                    contents = file_.read()
+                    data_url = base64.b64encode(contents).decode("utf-8")
+                    file_.close()
+
+                    st.markdown(
+                        f'''
+                        <img src="data:image/gif;base64,{data_url}" 
+                            alt="density gif" 
+                            width=50%>
+                        ''',
+                        unsafe_allow_html=True,
+                    )
+                except Exception as e:
+                    st.error(f"Error loading GIF: {e}")
             else:
                 st.info("Density GIF not found. Click the button below to generate it.")
-                
-                if st.button("Generate Density GIF", key="generate_density_gif_btn"):
-                    with st.spinner("Generating density GIF (this may take a few minutes)..."):
-                        try:
-                            generated_path = plot_glm_density_gif(
-                                glm_data_path=glm_data_path,
-                                besttrack_path=besttrack_path,
-                                quality_flag=0,
-                                save_path=gif_path
-                            )
-                            
-                            if generated_path and os.path.exists(generated_path):
-                                st.success("Density GIF generated successfully!")
-                                st.rerun()  # Refresh to show the GIF
-                            else:
-                                st.error("GIF generation completed but file not found.")
-                        except Exception as e:
-                            st.error(f"Error generating density GIF: {e}")
+            
+            # Always show regenerate button
+            if st.button("Generate/Regenerate Density GIF", key="generate_density_gif_btn"):
+                with st.spinner("Generating density GIF (this may take a few minutes)..."):
+                    try:
+                        generated_path = plot_glm_density_gif(
+                            glm_data_path=glm_data_path,
+                            besttrack_path=besttrack_path,
+                            quality_flag=0,
+                            save_path=gif_path
+                        )
+                        
+                        if generated_path and os.path.exists(generated_path):
+                            st.success("Density GIF generated successfully!")
+                            st.rerun()  # Refresh to show the GIF
+                        else:
+                            st.error("GIF generation completed but file not found.")
+                    except Exception as e:
+                        st.error(f"Error generating density GIF: {e}")
 
 with tab4:
     st.header("Shear Plots (all)")
