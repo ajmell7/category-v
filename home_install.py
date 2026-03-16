@@ -212,17 +212,3 @@ else:
                         st.error(f"Error downloading GLM data: {e}")
     except Exception as e:
         st.error(f"Error loading hurricane list: {e}")
-
-st.divider()
-
-st.subheader("Next Steps")
-st.markdown("""
-Once you have completed the steps above, you can navigate to the other pages to:
-- View lightning group histograms
-- Explore hurricane paths
-- Watch density GIFs
-- Analyze shear plots
-
-**Note:** Some visualizations may require additional data processing (GLM data, SHIPS data, etc.)
-that is not covered in this setup page.
-""")
