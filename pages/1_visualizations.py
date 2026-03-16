@@ -11,26 +11,7 @@ from helpers.plot_helpers import (
 )
 
 st.set_page_config(layout="wide")
-st.title("Hurricane Plots")
-
-# Get all hurricane information
-@st.cache_data
-def load_hurricane_list():
-    return pd.read_csv("data/global/hurricane/atl_hurricane_list_20190101_20231231.csv")
-
-all_hurricanes = load_hurricane_list()
-hurricane_names = sorted(all_hurricanes["name"].unique())
-
-t_numbers = ["All", "1_5", "2", "2_5", "3", "3_5", "4", "4_5", "5", "5_5", "6", "6_5", "7", "7_5", "8"]
-intensification_stages = ["All", "NC", "I", "RI", "W", "RW"]
-
-
-col1, col2, col3 = st.columns([1, 1, 3])  # 1 = small, 4 = large
-
-with col1:
-    hurricane_name = st.selectbox("Select Hurricane", hurricane_names, key="hurricane_selectbox")
-
-hurricane_code, hurricane_year, best_track_df = pull_minimal_hurricane_data(all_hurricanes, hurricane_name)
+st.title("Tropical Storm Visualization Tool")
 
 # Create tabs
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["Lightning Group Histogram", 
@@ -39,36 +20,82 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["Lightning Group Histogram",
                                         "Shear Plots (all)", 
                                         "Shear Plots (individual)"])
 
+# Get all hurricane information (only if available)
+try:
+    @st.cache_data
+    def load_hurricane_list():
+        return pd.read_csv("data/global/hurricane/atl_hurricane_list_20190101_20231231.csv")
+    
+    all_hurricanes = load_hurricane_list()
+    hurricane_names = sorted(all_hurricanes["name"].unique())
+except:
+    all_hurricanes = pd.DataFrame()
+    hurricane_names = []
+
+t_numbers = ["All", "1_5", "2", "2_5", "3", "3_5", "4", "4_5", "5", "5_5", "6", "6_5", "7", "7_5", "8"]
+intensification_stages = ["All", "NC", "I", "RI", "W", "RW"]
+
+# Only show other tabs if hurricane data is available
+if len(hurricane_names) > 0:
+    col1, col2, col3 = st.columns([1, 1, 3])
+    
+    with col1:
+        hurricane_name = st.selectbox("Select Hurricane", hurricane_names, key="hurricane_selectbox")
+    
+    hurricane_code, hurricane_year, best_track_df = pull_minimal_hurricane_data(all_hurricanes, hurricane_name)
+else:
+    # Create dummy variables to prevent errors
+    hurricane_name = None
+    hurricane_code = None
+    hurricane_year = None
+    best_track_df = None
+
 with tab1:
     st.header("Lightning Group Histogram")
-
-    image = Image.open(f'plots/histograms/{hurricane_name}_{hurricane_year}_histogram.png')
-    st.image(image, width="stretch")
+    
+    if hurricane_name is None:
+        st.warning("Please complete the setup steps in the 'Home Install' tab first.")
+    else:
+        try:
+            image = Image.open(f'plots/histograms/{hurricane_name}_{hurricane_year}_histogram.png')
+            st.image(image, width="stretch")
+        except:
+            st.warning("No histogram available for this hurricane.")
 
 with tab2:
     st.header("Hurricane Path")
-
-    fig = plot_hurricane_path_interactive(best_track_df, hurricane_name)
-    st.plotly_chart(fig, width="stretch")
+    
+    if hurricane_name is None or best_track_df is None:
+        st.warning("Please complete the setup steps in the 'Home Install' tab first.")
+    else:
+        try:
+            fig = plot_hurricane_path_interactive(best_track_df, hurricane_name)
+            st.plotly_chart(fig, width="stretch")
+        except Exception as e:
+            st.warning(f"Error displaying hurricane path: {e}")
 
 with tab3:
     st.header("Density GIFs")
-    try:
-        file_ = open(f"plots/density_gifs/{hurricane_name}_{hurricane_year}_density.gif", "rb")
-        contents = file_.read()
-        data_url = base64.b64encode(contents).decode("utf-8")
-        file_.close()
+    
+    if hurricane_name is None:
+        st.warning("Please complete the setup steps in the 'Home Install' tab first.")
+    else:
+        try:
+            file_ = open(f"plots/density_gifs/{hurricane_name}_{hurricane_year}_density.gif", "rb")
+            contents = file_.read()
+            data_url = base64.b64encode(contents).decode("utf-8")
+            file_.close()
 
-        st.markdown(
-            f'''
-            <img src="data:image/gif;base64,{data_url}" 
-                alt="density gif" 
-                width=50%>
-            ''',
-            unsafe_allow_html=True,
-        )
-    except:
-        st.warning("No density GIF available for this hurricane.")
+            st.markdown(
+                f'''
+                <img src="data:image/gif;base64,{data_url}" 
+                    alt="density gif" 
+                    width=50%>
+                ''',
+                unsafe_allow_html=True,
+            )
+        except:
+            st.warning("No density GIF available for this hurricane.")
 
 with tab4:
     st.header("Shear Plots (all)")
