@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from matplotlib.ticker import MultipleLocator
 from datetime import datetime
 import os
 import cartopy.crs as ccrs
@@ -63,7 +64,7 @@ def find_bin_area(min_latitude, max_latitude, min_longitude, max_longitude):
 
 def compute_density_grid(frame_data, min_latitude, max_latitude, min_longitude, max_longitude, cell_size=0.1):
     """
-    Compute density grid by counting lightning groups in each cell.
+    Compute density grid by counting lightning groups in each cell and dividing by cell area.
     
     Args:
         frame_data: DataFrame with GLM data for a single bin time
@@ -75,7 +76,7 @@ def compute_density_grid(frame_data, min_latitude, max_latitude, min_longitude, 
     
     Returns:
         Tuple of (density_counts, lon_edges, lat_edges)
-        - density_counts: 2D numpy array with counts per cell
+        - density_counts: 2D numpy array with density per km² (groups per km²)
         - lon_edges: Longitude bin edges
         - lat_edges: Latitude bin edges
     """
@@ -97,44 +98,72 @@ def compute_density_grid(frame_data, min_latitude, max_latitude, min_longitude, 
     )
     
     # Transpose to get (lat, lon) orientation for plotting
-    density_counts = counts.T
+    counts = counts.T
+    
+    # Calculate area for each cell and convert counts to density (per km²)
+    geod = Geod(ellps='WGS84')
+    density_counts = np.zeros_like(counts)
+    
+    for i in range(len(lat_bins) - 1):
+        for j in range(len(lon_bins) - 1):
+            # Get cell bounds
+            cell_min_lat = lat_bins[i]
+            cell_max_lat = lat_bins[i + 1]
+            cell_min_lon = lon_bins[j]
+            cell_max_lon = lon_bins[j + 1]
+            
+            # Calculate cell area in km²
+            lons = [cell_min_lon, cell_max_lon, cell_max_lon, cell_min_lon]
+            lats = [cell_min_lat, cell_min_lat, cell_max_lat, cell_max_lat]
+            area_m2, _ = geod.polygon_area_perimeter(lons, lats)
+            area_km2 = abs(area_m2) / 1_000_000
+            
+            # Convert count to density (groups per km²)
+            if area_km2 > 0:
+                density_counts[i, j] = counts[i, j] / area_km2
+            else:
+                density_counts[i, j] = 0
     
     return density_counts, x_edges, y_edges
 
 
 def load_besttrack_data(besttrack_path):
     """
-    Load besttrack data and create a mapping from timestamp to (latitude, longitude).
+    Load besttrack data and create a mapping from timestamp to (latitude, longitude, rmw).
     
     Args:
         besttrack_path: Path to besttrack CSV file
     
     Returns:
-        Dictionary mapping timestamp to (lat, lon) tuple, or None if file doesn't exist
+        Dictionary mapping timestamp to (lat, lon, rmw) tuple, or None if file doesn't exist
     """
     if not besttrack_path or not os.path.exists(besttrack_path):
         return None
     
     besttrack_df = pd.read_csv(besttrack_path, parse_dates=['Timestamp'])
     
-    # Create a dictionary mapping timestamp to (lat, lon)
+    # Create a dictionary mapping timestamp to (lat, lon, rmw)
     besttrack_data = {}
     for _, row in besttrack_df.iterrows():
-        besttrack_data[row['Timestamp']] = (row['Latitude'], row['Longitude'])
+        rmw = row.get('Radius of Maximum Winds', -999)  # Default to -999 if column doesn't exist
+        # Handle -999 as missing data
+        if rmw == -999 or pd.isna(rmw):
+            rmw = None
+        besttrack_data[row['Timestamp']] = (row['Latitude'], row['Longitude'], rmw)
 
     return besttrack_data
 
 
 def get_hurricane_center(bin_time, besttrack_data):
     """
-    Get hurricane center (lat, lon) for a given bin time from besttrack data.
+    Get hurricane center (lat, lon, rmw) for a given bin time from besttrack data.
     
     Args:
         bin_time: Bin time to look up
-        besttrack_data: Dictionary mapping timestamp to (lat, lon), or None
+        besttrack_data: Dictionary mapping timestamp to (lat, lon, rmw), or None
     
     Returns:
-        Tuple of (latitude, longitude) if found, None otherwise
+        Tuple of (latitude, longitude, rmw) if found, None otherwise
     """
     if besttrack_data is None:
         return None
@@ -172,7 +201,7 @@ def calculate_frame_bounds(bin_time, besttrack_data, global_bounds, box_size):
     if besttrack_data:
         center = get_hurricane_center(bin_time, besttrack_data)
         if center:
-            center_lat, center_lon = center
+            center_lat, center_lon, _ = center  # Unpack (lat, lon, rmw), ignore rmw here
             return (
                 center_lat - box_size,
                 center_lat + box_size,
@@ -249,14 +278,16 @@ def setup_map_plot(extent_bounds):
     min_lon, max_lon, min_lat, max_lat = extent_bounds
     ax.set_extent([min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree())
     
-    # Add gridlines with labels
+    # Add gridlines with labels (2 degree spacing)
     gl = ax.gridlines(
         crs=ccrs.PlateCarree(),
         draw_labels=True,
         linewidth=0.5,
         color='gray',
         alpha=0.5,
-        linestyle='--'
+        linestyle='--',
+        xlocs=MultipleLocator(2),
+        ylocs=MultipleLocator(2)
     )
     gl.top_labels = False
     gl.right_labels = False
@@ -309,7 +340,7 @@ def plot_density_frame(ax, density_counts, lon_bins, lat_bins, max_log, cell_siz
     center = get_hurricane_center(bin_time, besttrack_data)
     marker = None
     if center:
-        center_lat, center_lon = center
+        center_lat, center_lon, rmw = center
         # Plot hurricane center marker (black +)
         marker_line = ax.plot(
             center_lon, center_lat,
@@ -323,9 +354,16 @@ def plot_density_frame(ax, density_counts, lon_bins, lat_bins, max_log, cell_siz
             zorder=10  # Ensure marker appears on top
         )
         marker = marker_line[0]  # plot() returns a list, get the first element
-        title = (f'GLM Lightning Density\n'
-                f'Time: {bin_time}\n'
-                f'Hurricane Center: ({center_lat:.2f}°, {center_lon:.2f}°)')
+        # Build title with RMW if available
+        if rmw is not None and rmw != -999:
+            title = (f'GLM Lightning Density\n'
+                    f'Time: {bin_time}\n'
+                    f'Hurricane Center: ({center_lat:.2f}°, {center_lon:.2f}°)\n'
+                    f'RMW: {rmw:.1f} km')
+        else:
+            title = (f'GLM Lightning Density\n'
+                    f'Time: {bin_time}\n'
+                    f'Hurricane Center: ({center_lat:.2f}°, {center_lon:.2f}°)')
     else:
         title = (f'GLM Lightning Density\n'
                 f'Time: {bin_time}')
@@ -405,8 +443,8 @@ def plot_glm_density_gif(glm_data_path, besttrack_path=None, quality_flag=0, sav
     )
     
     # Create colorbar with larger label
-    cbar = plt.colorbar(first_im, ax=ax, label='Lightning Groups per Cell (log₁₀ scale)')
-    cbar.set_label('Lightning Groups per Cell (log₁₀ scale)', size=14)
+    cbar = plt.colorbar(first_im, ax=ax, label='Lightning Groups per km² (log₁₀ scale)')
+    cbar.set_label('Lightning Groups per km² (log₁₀ scale)', size=14)
     # Make the tick labels (scale numbers) bigger
     cbar.ax.tick_params(labelsize=14)
     
@@ -437,14 +475,16 @@ def plot_glm_density_gif(glm_data_path, besttrack_path=None, quality_flag=0, sav
         ax.set_extent([frame_min_lon, frame_max_lon, frame_min_lat, frame_max_lat], 
                       crs=ccrs.PlateCarree())
         
-        # Create new gridlines for this frame's extent
+        # Create new gridlines for this frame's extent (2 degree spacing)
         gl = ax.gridlines(
             crs=ccrs.PlateCarree(),
             draw_labels=True,
             linewidth=0.5,
             color='gray',
             alpha=0.5,
-            linestyle='--'
+            linestyle='--',
+            xlocs=MultipleLocator(2),
+            ylocs=MultipleLocator(2)
         )
         gl.top_labels = False
         gl.right_labels = False
