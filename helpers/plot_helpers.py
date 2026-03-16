@@ -90,7 +90,10 @@ def get_lightining_groups(bin_times, bin_starts, bin_ends, best_track_df, glm_df
 def create_inner_or_outer_core_histogram(inner_or_outer, lightning_groups_df, best_track_df, hurricane_name, hurricane_year):
 
     fig, ax = plt.subplots(figsize=(12, 6))
-    fig.suptitle(f"{hurricane_name} {hurricane_year}: GLM Groups \n (blue = water, orange = land)", fontsize=16)
+    fig.suptitle(
+        f"{hurricane_name} {hurricane_year}: GLM Groups \n (blue = water, orange = land)",
+        fontsize=18
+    )
 
     def plot_panel(ax, lightning_df):
         geo_colors = {
@@ -108,12 +111,15 @@ def create_inner_or_outer_core_histogram(inner_or_outer, lightning_groups_df, be
             color=geo_colors,
             label='GLM Groups'
         )
+
         if inner_or_outer == "inner":
-            ax.set_title("r <= 1.5RMW")
+            ax.set_title("r <= 1.5RMW", fontsize=16)
         else:
-            ax.set_title("1.5RMW < r <= 5RMW")
-        ax.set_ylabel('Group Count')
-        ax.tick_params(axis='x', labelrotation=90)
+            ax.set_title("1.5RMW < r <= 5RMW", fontsize=16)
+
+        ax.set_ylabel('Group Count', fontsize=14)
+        ax.tick_params(axis='x', labelrotation=90, labelsize=12)
+        ax.tick_params(axis='y', labelsize=12)
 
         # Right axis 1: Pressure
         ax_r1 = ax.twinx()
@@ -125,7 +131,8 @@ def create_inner_or_outer_core_histogram(inner_or_outer, lightning_groups_df, be
             label='Pressure (mb)'
         )
         ax_r1.set_ylim(800, 1100)
-        ax_r1.set_ylabel('Pressure (mb)', color='tab:green')
+        ax_r1.set_ylabel('Pressure (mb)', fontsize=14, color='tab:green')
+        ax_r1.tick_params(axis='y', labelsize=12)
 
         # Right axis 2: Wind speed
         ax_r2 = ax.twinx()
@@ -137,7 +144,8 @@ def create_inner_or_outer_core_histogram(inner_or_outer, lightning_groups_df, be
             label='Sustained Wind (knots)'
         )
         ax_r2.set_ylim(0, 200)
-        ax_r2.set_ylabel('Sustained Wind (knots)', color='tab:red')
+        ax_r2.set_ylabel('Sustained Wind (knots)', fontsize=14, color='tab:red')
+        ax_r2.tick_params(axis='y', labelsize=12)
         ax_r2.spines['right'].set_position(('outward', 60))
 
         # Right axis 3: RMW
@@ -150,7 +158,8 @@ def create_inner_or_outer_core_histogram(inner_or_outer, lightning_groups_df, be
             label='RMW (nautical miles)'
         )
         ax_r3.set_ylim(0, 200)
-        ax_r3.set_ylabel('RMW (nautical miles)', color='tab:purple')
+        ax_r3.set_ylabel('RMW (nautical miles)', fontsize=14, color='tab:purple')
+        ax_r3.tick_params(axis='y', labelsize=12)
         ax_r3.spines['right'].set_position(('outward', 120))
 
         # Combined legend
@@ -160,7 +169,7 @@ def create_inner_or_outer_core_histogram(inner_or_outer, lightning_groups_df, be
             lines.extend(l)
             labels.extend(lab)
 
-        ax.legend(lines, labels, loc='best')
+        ax.legend(lines, labels, loc='best', fontsize=12)
 
     plot_panel(ax, lightning_groups_df)
 
