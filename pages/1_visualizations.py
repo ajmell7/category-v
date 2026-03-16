@@ -213,11 +213,11 @@ with tab5:
             if t_number == "All" and intensification_stage == "All":
                 image = Image.open(f'plots/shear_plots/rmwxy/Atlantic_Basin_Hurricane_{hurricane_name.capitalize()}__RMWXY.png')
             elif intensification_stage == "All":
-                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_Hurricane_{hurricane_name.capitalize()}_T__{t_number}__RMWXY.png')
+                image = Image.open(f'plots/shear_plots/rmwxy/Atlantic_Basin_Hurricane_{hurricane_name.capitalize()}_T__{t_number}__RMWXY.png')
             elif t_number == "All":
-                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_Hurricane_{hurricane_name.capitalize()}_{intensification_stage}_Only__RMWXY.png')
+                image = Image.open(f'plots/shear_plots/rmwxy/Atlantic_Basin_Hurricane_{hurricane_name.capitalize()}_{intensification_stage}_Only__RMWXY.png')
             else:
-                image = Image.open(f'plots/shear_plots/azimuth/Atlantic_Basin_Hurricane_{hurricane_name.capitalize()}_T__{t_number}_{intensification_stage}_Only__RMWXY.png')
+                image = Image.open(f'plots/shear_plots/rmwxy/Atlantic_Basin_Hurricane_{hurricane_name.capitalize()}_T__{t_number}_{intensification_stage}_Only__RMWXY.png')
             st.image(image, width="stretch")
         except:
             st.warning("No plot available for this combination of T-number and Intensification Stage.")
