@@ -9,6 +9,8 @@ from helpers.plot_helpers import (
     pull_minimal_hurricane_data,
     plot_hurricane_path_interactive
 )
+from helpers.glm_density import plot_glm_density_gif
+import os
 
 st.set_page_config(layout="wide")
 st.title("Tropical Storm Visualization Tool")
@@ -80,22 +82,55 @@ with tab3:
     if hurricane_name is None:
         st.warning("Please complete the setup steps in the 'Home Install' tab first.")
     else:
-        try:
-            file_ = open(f"plots/density_gifs/{hurricane_name}_{hurricane_year}_density.gif", "rb")
-            contents = file_.read()
-            data_url = base64.b64encode(contents).decode("utf-8")
-            file_.close()
+        # Check for GIF in the new location
+        gif_path = f"data/storms/{hurricane_name}_{hurricane_year}/glm/glm_density_animation.gif"
+        glm_data_path = f"data/storms/{hurricane_name}_{hurricane_year}/glm/groups.csv"
+        besttrack_path = f"data/storms/{hurricane_name}_{hurricane_year}/hurricane/besttrack.csv"
+        
+        if os.path.exists(gif_path):
+            # GIF exists, display it
+            try:
+                file_ = open(gif_path, "rb")
+                contents = file_.read()
+                data_url = base64.b64encode(contents).decode("utf-8")
+                file_.close()
 
-            st.markdown(
-                f'''
-                <img src="data:image/gif;base64,{data_url}" 
-                    alt="density gif" 
-                    width=50%>
-                ''',
-                unsafe_allow_html=True,
-            )
-        except:
-            st.warning("No density GIF available for this hurricane.")
+                st.markdown(
+                    f'''
+                    <img src="data:image/gif;base64,{data_url}" 
+                        alt="density gif" 
+                        width=50%>
+                    ''',
+                    unsafe_allow_html=True,
+                )
+            except Exception as e:
+                st.error(f"Error loading GIF: {e}")
+        else:
+            # GIF doesn't exist, check if GLM data exists
+            if not os.path.exists(glm_data_path):
+                st.warning(f"GLM data not found at `{glm_data_path}`. Please complete Step 5 in the Home/Installation page to download GLM data first.")
+            elif not os.path.exists(besttrack_path):
+                st.warning(f"Best track data not found at `{besttrack_path}`. Please complete Step 2 in the Home/Installation page first.")
+            else:
+                st.info("Density GIF not found. Click the button below to generate it.")
+                
+                if st.button("Generate Density GIF", key="generate_density_gif_btn"):
+                    with st.spinner("Generating density GIF (this may take a few minutes)..."):
+                        try:
+                            generated_path = plot_glm_density_gif(
+                                glm_data_path=glm_data_path,
+                                besttrack_path=besttrack_path,
+                                quality_flag=0,
+                                save_path=gif_path
+                            )
+                            
+                            if generated_path and os.path.exists(generated_path):
+                                st.success("Density GIF generated successfully!")
+                                st.rerun()  # Refresh to show the GIF
+                            else:
+                                st.error("GIF generation completed but file not found.")
+                        except Exception as e:
+                            st.error(f"Error generating density GIF: {e}")
 
 with tab4:
     st.header("Shear Plots (all)")
