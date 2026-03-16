@@ -45,23 +45,6 @@ def find_max_min_coords(glm_df):
     
     return max_latitude, min_latitude, max_longitude, min_longitude
 
-
-def find_bin_area(min_latitude, max_latitude, min_longitude, max_longitude):
-    """
-    Calculate area by integrating over the lat/lon rectangle.
-    """
-    geod = Geod(ellps='WGS84')
-    
-    # Four corners of the rectangle
-    lons = [min_longitude, max_longitude, max_longitude, min_longitude]
-    lats = [min_latitude, min_latitude, max_latitude, max_latitude]
-    
-    # polygon_area_perimeter takes lons and lats as separate lists
-    area_m2, _ = geod.polygon_area_perimeter(lons, lats)
-    
-    return abs(area_m2) / 1_000_000  # Convert m² to km²
-
-
 def compute_density_grid(frame_data, min_latitude, max_latitude, min_longitude, max_longitude, cell_size=0.1):
     """
     Compute density grid by counting lightning groups in each cell and dividing by cell area.
