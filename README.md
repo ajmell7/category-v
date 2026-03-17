@@ -238,19 +238,6 @@ csv_path = process_glm_info_for_hurricane(
 # Saves to data/storms/IAN_2022/glm/groups.csv
 ```
 
-#### Process GLM data for all hurricanes
-
-```python
-from helpers import process_all_hurricanes_glm
-
-# Process GLM data for all hurricanes
-results = process_all_hurricanes_glm(
-    box_size=6,
-    region="atl",
-    time_interval=30
-)
-```
-
 ### Orchestrating Complete Data Processing
 
 #### Download all data for a single hurricane
@@ -380,7 +367,6 @@ Functions for working with GLM (Geostationary Lightning Mapper) data:
 - `process_glm_file_h5py(url, center_lat, center_lon, box_size, geod, cache_dir)` - Process a single GLM file
 - `aggregate_glm_data_for_urls(glm_urls, center_lat, center_lon, box_size, geod, cache_dir)` - Aggregate GLM data from multiple URLs
 - `process_glm_info_for_hurricane(hurricane_code, box_size=6, region=None, time_interval=30, cache_dir=None)` - Process GLM data for a single hurricane
-- `process_all_hurricanes_glm(box_size=6, region=None, time_interval=30, cache_dir=None)` - Process GLM data for all hurricanes
 
 ### `orchestration_helpers`
 Functions for orchestrating complete data processing pipelines:
