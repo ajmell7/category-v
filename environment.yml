@@ -15,7 +15,6 @@ dependencies:
   - numpy
   # Visualization
   - matplotlib
-  - random
   - cycler
   - plotly
   # Geographic and astronomical libraries
