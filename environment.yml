@@ -19,6 +19,7 @@ dependencies:
   - plotly
   # Geographic and astronomical libraries
   - pyproj
+  - contextily
   - astropy
   # Libraries for interpolation
   - geographiclib
