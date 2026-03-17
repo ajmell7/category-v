@@ -3,8 +3,7 @@ Helper functions for working with GLM data from Google Cloud Storage stored as N
 """
 
 from .glm_helpers import (
-    process_glm_info_for_hurricane,
-    process_all_hurricanes_glm
+    process_glm_info_for_hurricane
 )
 from .time_helpers import get_bins_midpoint_times, get_bins_start_times, get_bins_end_times
 from .ships_helpers import save_ships_data, interpolate_ships_info_for_hurricane, interpolate_all_hurricanes_ships
@@ -27,7 +26,6 @@ __all__ = [
     'get_bins_end_times',
 
     'process_glm_info_for_hurricane',
-    'process_all_hurricanes_glm',
 
     'save_ships_data',
     'interpolate_ships_info_for_hurricane',

@@ -2,16 +2,20 @@
 
 This project provides tools for downloading, processing, and analyzing Geostationary Lightning Mapper (GLM) data from Google Cloud Storage and correlating it with hurricane data from the HURDAT2 database and SHIPS data.
 
-## Data Pipeline
+## Capstone Poster
 
-![Data Pipeline](data_pipeline.png)
+- **PDF**: [`capstone_poster.pdf`](capstone_poster.pdf)
 
-The data pipeline shows the flow from raw GLM NetCDF files downloaded from Google Cloud Storage, through processing to extract group components, and integration with hurricane tracking data.
+<embed src="capstone_poster.pdf" type="application/pdf" width="100%" height="900px" />
 
 ## Requirements
 
 - Python >= 3.8
 - Conda (Miniconda or Anaconda)
+
+Helpful install links:
+- **Python**: [python.org downloads](https://www.python.org/downloads/)
+- **Conda (Miniconda)**: [Miniconda installer](https://docs.conda.io/en/latest/miniconda.html)
 
 ## Installation
 
@@ -21,23 +25,20 @@ The data pipeline shows the flow from raw GLM NetCDF files downloaded from Googl
 cd category-v
 ```
 
-### 2. Create and activate the conda environment
+### 2. Install the conda environment
 
-The project uses conda to manage dependencies. You can use the Makefile for easy environment management:
-
-**Using Makefile (Recommended):**
 ```bash
-# Create the conda environment
-make setup
-
-# Update the environment if needed
-make update
-
-# Show activation command
-make activate
+make install
 ```
 
-**Or manually:**
+If you ever update `environment.yml`, run:
+
+```bash
+make update
+```
+
+**Manual alternative (no Makefile):**
+
 ```bash
 conda env create -f environment.yml
 ```
@@ -57,9 +58,10 @@ This will create a conda environment named `category-v` with all required depend
 conda activate category-v
 ```
 
-Or use the Makefile:
+If you’re unsure what to run, this prints the activation command:
+
 ```bash
-make activate  # Shows the activation command
+make activate
 ```
 
 ### 4. Verify installation
@@ -71,33 +73,8 @@ You can verify the installation by running:
 make run
 
 # Or manually
-python main.py
+streamlit run home_install.py
 ```
-
-## Running as Daemon (Background Process)
-
-For long-running processes (like processing all hurricanes), you can run the script as a daemon that continues running even if you close your terminal or your screen goes blank:
-
-```bash
-# Start as daemon (background)
-make daemon
-
-# Check if daemon is running
-make status
-
-# View logs in real-time
-make logs
-
-# Stop the daemon
-make stop
-```
-
-The daemon will:
-- Continue running even if you disconnect or close your terminal
-- Save all output to timestamped log files in `logs/`
-- Save the process ID to `logs/main.pid` for easy management
-
-**Note:** Processing all hurricanes can take many hours. Running as a daemon is recommended for this use case.
 
 ## Project Structure
 
@@ -128,17 +105,23 @@ category-v/
 │   └── __init__.py
 ├── constants.py          # Global constants (time ranges, URLs, etc.)
 ├── main.py              # Main script with examples
-├── Makefile             # Makefile for environment and daemon management
+├── Makefile             # Makefile for environment management and running Streamlit
 ├── environment.yml      # Conda environment configuration
-├── logs/                # Log files and PID files (created when running daemon)
+├── logs/                # Log files
 └── README.md           # This file
 ```
 
 ## Usage
 
+**Primary Interface:** The recommended way to interact with this project is through the Streamlit web application. Run `make run` (or `streamlit run home_install.py`) to launch the interactive web tool, which provides a user-friendly interface for downloading, processing, and visualizing hurricane and GLM data.
+
+**Jupyter Notebooks:** The project also includes Jupyter notebooks (e.g., `LightningFreq_byShearDir.ipynb`) for creating specialized visualizations like shear plots. These notebooks can be run independently outside the web tool and provide additional analysis capabilities.
+
+The code examples below document the underlying helper functions and methods for programmatic access and further reading. The web tool abstracts these methods behind an intuitive interface, but understanding the underlying functions can be helpful for advanced use cases or custom scripts.
+
 ### Working with Hurricane Data
 
-#### List all hurricanes (2021-2023)
+#### List all hurricanes (2019-2023)
 
 ```python
 from helpers import list_all_hurricanes
@@ -238,19 +221,6 @@ csv_path = process_glm_info_for_hurricane(
 # Saves to data/storms/IAN_2022/glm/groups.csv
 ```
 
-#### Process GLM data for all hurricanes
-
-```python
-from helpers import process_all_hurricanes_glm
-
-# Process GLM data for all hurricanes
-results = process_all_hurricanes_glm(
-    box_size=6,
-    region="atl",
-    time_interval=30
-)
-```
-
 ### Orchestrating Complete Data Processing
 
 #### Download all data for a single hurricane
@@ -314,45 +284,16 @@ bin_ends = get_hurricane_bin_end_times(hurricane_code, region="atl", time_interv
 
 ## Makefile Commands
 
-The project includes a Makefile for convenient environment and process management:
+The project includes a Makefile for environment management and running the Streamlit app:
 
 ### Environment Management
-- `make setup` - Create conda environment from `environment.yml`
+- `make install` - Create conda environment from `environment.yml`
 - `make update` - Update conda environment from `environment.yml`
-- `make activate` - Show command to activate the conda environment
+- `make activate` - Print the command(s) to activate the conda environment
+- `make clean` - Remove log files
 
 ### Running Scripts
-- `make run` - Run `main.py` normally (foreground)
-- `make daemon` - Run `main.py` as daemon (background process)
-- `make stop` - Stop the daemon process
-- `make status` - Check if daemon is running
-- `make logs` - View latest log file in real-time (`tail -f`)
-- `make clean` - Remove log files and PID file
-
-### Example Workflow
-
-```bash
-# First time setup
-make setup
-
-# Update environment if needed
-make update
-
-# Run a quick test (foreground)
-make run
-
-# For long-running processes, use daemon
-make daemon
-
-# Monitor progress
-make logs
-
-# Check status
-make status
-
-# Stop when done
-make stop
-```
+- `make run` - Run the Streamlit app (foreground)
 
 ## Helper Modules
 
@@ -380,7 +321,6 @@ Functions for working with GLM (Geostationary Lightning Mapper) data:
 - `process_glm_file_h5py(url, center_lat, center_lon, box_size, geod, cache_dir)` - Process a single GLM file
 - `aggregate_glm_data_for_urls(glm_urls, center_lat, center_lon, box_size, geod, cache_dir)` - Aggregate GLM data from multiple URLs
 - `process_glm_info_for_hurricane(hurricane_code, box_size=6, region=None, time_interval=30, cache_dir=None)` - Process GLM data for a single hurricane
-- `process_all_hurricanes_glm(box_size=6, region=None, time_interval=30, cache_dir=None)` - Process GLM data for all hurricanes
 
 ### `orchestration_helpers`
 Functions for orchestrating complete data processing pipelines:
@@ -413,7 +353,7 @@ Each storm has its own directory: `data/storms/{NAME}_{YEAR}/`
 ## Constants
 
 All time ranges, URLs, and default values are defined in `constants.py`:
-- `TS_MIN`, `TS_MAX` - Time range for data processing (2021-2023)
+- `TS_MIN`, `TS_MAX` - Time range for data processing (2019-2023)
 - `DEFAULT_REGION` - Default region ("atl")
 - `DEFAULT_NN_TOLERANCE` - Default nearest neighbor tolerance (3 hours)
 - `GLM_BUCKET_NAME` - Google Cloud Storage bucket name
@@ -421,7 +361,7 @@ All time ranges, URLs, and default values are defined in `constants.py`:
 
 ## Notes
 
-- All hurricane data is filtered to years 2021-2023 (defined in `constants.py`)
+- All hurricane data is filtered to years 2019-2023 (defined in `constants.py`)
 - GLM data is read directly from Google Cloud Storage (no local download required)
 - Cache is automatically cleared after each bin and hurricane to free up disk space
 - All functions use constants from `constants.py` for time ranges and default values
