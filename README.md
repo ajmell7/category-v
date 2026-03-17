@@ -115,6 +115,8 @@ category-v/
 
 **Primary Interface:** The recommended way to interact with this project is through the Streamlit web application. Run `make run` (or `streamlit run home_install.py`) to launch the interactive web tool, which provides a user-friendly interface for downloading, processing, and visualizing hurricane and GLM data.
 
+**Jupyter Notebooks:** The project also includes Jupyter notebooks (e.g., `LightningFreq_byShearDir.ipynb`) for creating specialized visualizations like shear plots. These notebooks can be run independently outside the web tool and provide additional analysis capabilities.
+
 The code examples below document the underlying helper functions and methods for programmatic access and further reading. The web tool abstracts these methods behind an intuitive interface, but understanding the underlying functions can be helpful for advanced use cases or custom scripts.
 
 ### Working with Hurricane Data
