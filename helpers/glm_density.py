@@ -238,6 +238,60 @@ def precompute_density_grids(glm_df, besttrack_data, global_bounds, box_size, ce
     return density_grids, max_density
 
 
+def precompute_density_grids_for_all_times(glm_df, besttrack_data, all_times, global_bounds, box_size, cell_size):
+    """
+    Pre-compute density grids for all specified times, including times with no GLM data.
+    This ensures smooth animation following the besttrack path even when there's no lightning.
+    
+    Args:
+        glm_df: Filtered GLM DataFrame
+        besttrack_data: Dictionary mapping timestamp to (lat, lon), or None
+        all_times: List of all bin times to include (from besttrack or GLM)
+        global_bounds: Tuple of (min_lat, max_lat, min_lon, max_lon)
+        box_size: Size of box around hurricane center in degrees
+        cell_size: Size of each cell in degrees
+    
+    Returns:
+        Tuple of (density_grids dict, max_density value)
+        density_grids maps bin_time to (density_counts, min_lat, max_lat, min_lon, max_lon)
+    """
+    # Create time groups if we have GLM data
+    if len(glm_df) > 0:
+        time_groups = glm_df.groupby('Bin Time')
+        glm_times_set = set(time_groups.groups.keys())
+    else:
+        time_groups = None
+        glm_times_set = set()
+    
+    print("Pre-computing density grids for all times (including times with no lightning)...")
+    density_grids = {}
+    max_density = 0
+    
+    for current_time in all_times:
+        # Get GLM data for this time if it exists
+        if current_time in glm_times_set and time_groups is not None:
+            frame_data = time_groups.get_group(current_time)
+        else:
+            # No GLM data for this time - use empty DataFrame
+            frame_data = pd.DataFrame()
+        
+        # Calculate bounds for this frame (always based on besttrack if available)
+        frame_min_lat, frame_max_lat, frame_min_lon, frame_max_lon = calculate_frame_bounds(
+            current_time, besttrack_data, global_bounds, box_size
+        )
+        
+        # Compute density grid (will be empty if no GLM data)
+        density_counts, _, _ = compute_density_grid(
+            frame_data, frame_min_lat, frame_max_lat, frame_min_lon, frame_max_lon, cell_size
+        )
+        
+        # Store grid and bounds
+        density_grids[current_time] = (density_counts, frame_min_lat, frame_max_lat, frame_min_lon, frame_max_lon)
+        max_density = max(max_density, density_counts.max())
+    
+    return density_grids, max_density
+
+
 def setup_map_plot(extent_bounds):
     """
     Set up a cartopy map plot with standard features.
@@ -389,13 +443,24 @@ def plot_glm_density_gif(glm_data_path, besttrack_path=None, quality_flag=0, sav
     max_latitude, min_latitude, max_longitude, min_longitude = find_max_min_coords(glm_df)
     global_bounds = (min_latitude, max_latitude, min_longitude, max_longitude)
     
-    # Step 4: Get unique bin times
-    unique_times = sorted(glm_df['Bin Time'].unique())
-    print(f"Creating density GIF with {len(unique_times)} frames...")
+    # Step 4: Get all bin times - use besttrack if available, otherwise use GLM data
+    if besttrack_data:
+        # Get all timestamps from besttrack to ensure smooth animation
+        all_besttrack_times = sorted(besttrack_data.keys())
+        glm_times = set(glm_df['Bin Time'].unique())
+        # Combine: use besttrack times, but also include any GLM times not in besttrack
+        unique_times = sorted(set(all_besttrack_times) | glm_times)
+        print(f"Using {len(all_besttrack_times)} timestamps from besttrack data")
+        print(f"Found {len(glm_times)} unique GLM bin times")
+        print(f"Creating density GIF with {len(unique_times)} frames (following besttrack path)...")
+    else:
+        # Fall back to GLM data only if no besttrack
+        unique_times = sorted(glm_df['Bin Time'].unique())
+        print(f"Creating density GIF with {len(unique_times)} frames (GLM data only)...")
     
-    # Step 5: Pre-compute all density grids
-    density_grids, max_density = precompute_density_grids(
-        glm_df, besttrack_data, global_bounds, box_size, cell_size
+    # Step 5: Pre-compute all density grids for all times
+    density_grids, max_density = precompute_density_grids_for_all_times(
+        glm_df, besttrack_data, unique_times, global_bounds, box_size, cell_size
     )
     
     # Step 6: Calculate max log value for consistent color scale
