@@ -25,6 +25,9 @@ def nautical_miles_to_meters(nautical_miles):
 
 
 def pull_hurricane_data(all_hurricanes, hurricane_name):
+    """
+    Pulls hurricane data for a specific hurricane from the all_hurricanes dataframe and corresponding GLM and best track data.
+    """
     # Select specific hurricane and pull corresponding data
     specific_hurricane = all_hurricanes[all_hurricanes['name'] == hurricane_name]
     hurricane_code = specific_hurricane['code'].values[0]
@@ -35,6 +38,10 @@ def pull_hurricane_data(all_hurricanes, hurricane_name):
     return hurricane_code, hurricane_year, glm_df, best_track_df
 
 def pull_minimal_hurricane_data(all_hurricanes, hurricane_name):
+    """
+    Pulls hurricane data for a specific hurricane from the all_hurricanes dataframe 
+    and corresponding best track data. Does not pull GLM data.
+    """
     # Select specific hurricane and pull corresponding data
     specific_hurricane = all_hurricanes[all_hurricanes['name'] == hurricane_name]
     hurricane_code = specific_hurricane['code'].values[0]
@@ -44,6 +51,13 @@ def pull_minimal_hurricane_data(all_hurricanes, hurricane_name):
     return hurricane_code, hurricane_year, best_track_df
 
 def get_lightining_groups(bin_times, bin_starts, bin_ends, best_track_df, glm_df):
+    """
+    For each bin of the histogram, get the number of lightning groups in the inner core 
+    (r <= 1.5RMW) and outer core (1.5RMW < r <= 5RMW) of the hurricane, 
+    as well as the land vs ocean location of the hurricane center at that time. 
+    Returns three dataframes: one for inner core, one for outer core, and one for all 
+    groups within 5RMW. Each dataframe contains columns for time, group count, and land/ocean flag.
+    """
     # Get lightning group counts for each bin of histogram
     lightning_groups_inner_core = []
     lightning_groups_outer_core = []
@@ -88,7 +102,10 @@ def get_lightining_groups(bin_times, bin_starts, bin_ends, best_track_df, glm_df
 
 
 def create_inner_or_outer_core_histogram(inner_or_outer, lightning_groups_df, best_track_df, hurricane_name, hurricane_year):
-
+    """
+    Creates a histogram of GLM groups in either the inner core (r <= 1.5RMW) 
+    or outer core (1.5RMW < r <= 5RMW) of the hurricane. Only one are the other, not both.
+    """
     fig, ax = plt.subplots(figsize=(12, 6))
     fig.suptitle(
         f"{hurricane_name} {hurricane_year}: GLM Groups \n (blue = water, orange = land)",
@@ -177,6 +194,10 @@ def create_inner_or_outer_core_histogram(inner_or_outer, lightning_groups_df, be
     return fig
 
 def create_histogram(lightning_groups_inner_core_df,lightning_groups_outer_core_df,best_track_df,hurricane_name,hurricane_year):
+    """
+    Creates a histogram of GLM groups in both the inner core (r <= 1.5RMW) 
+    and outer core (1.5RMW < r <= 5RMW) of the hurricane. Both are created side by side on single plot.
+    """
     fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharey=False)
     fig.suptitle(f"{hurricane_name} {hurricane_year}: GLM Groups \n (blue = water, orange = land)", fontsize=16)
 
@@ -255,6 +276,10 @@ def create_histogram(lightning_groups_inner_core_df,lightning_groups_outer_core_
     return fig
 
 def plot_hurricane_path(best_track_df, hurricane):
+    """
+    Plots the path of the hurricane using the best track data. 
+    The path is plotted on a map with coastlines and land/ocean features.
+    """
     # Get interpolated lat long points
     interp_lat = best_track_df['Latitude'].values
     interp_lon = best_track_df['Longitude'].values
@@ -291,6 +316,9 @@ def plot_hurricane_path(best_track_df, hurricane):
     return fig
 
 def calculate_hurricane_category(wind_speed_series):
+    """
+    Calculates the Saffir-Simpson hurricane category based on maximum sustained wind speeds.
+    """
     bins = [-1, 33, 63, 82, 95, 112, 136, float("inf")]
     labels = [
         "Tropical Depression",
@@ -305,6 +333,9 @@ def calculate_hurricane_category(wind_speed_series):
 
 
 def plot_hurricane_path_interactive(best_track_df, hurricane):
+    """
+    Plots the path of the hurricane using the best track data in an interactive map with Plotly.
+    """
     best_track_df['Category'] = calculate_hurricane_category(best_track_df['Maximum Sustained Winds'])
     fig = px.scatter_mapbox(
         best_track_df,
